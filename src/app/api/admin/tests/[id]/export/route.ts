@@ -81,8 +81,14 @@ export async function GET(
 
   if (!test) return new Response('Test not found.', { status: 404 });
 
+  // Numbered by position, counted from one — never from `sortOrder`.
+  //
+  // That column is an ordering key, not a question number: it carries whatever
+  // values the questions were attached with. On Polity + Current Affairs they
+  // began at 102, so the printed paper opened at "102" while the admin list
+  // beside it counted 1, 2, 3.
   const rows = test.questions
-    .map((row) => {
+    .map((row, index) => {
       const q = row.question;
       const options = q.options
         .map(
@@ -103,7 +109,7 @@ export async function GET(
       return `
         <article>
           <header>
-            <span class="num">${row.sortOrder}</span>
+            <span class="num">${index + 1}</span>
             <span class="meta">${escape(q.code ?? '')}${
               q.subject ? ` · ${escape(q.subject.name)}` : ''
             } · ${row.marks} mark${row.marks === 1 ? '' : 's'}</span>
@@ -135,8 +141,20 @@ export async function GET(
   }
   h1 { font-size: 18pt; margin: 0 0 2px; }
   .sub { color: #555; font-size: 10pt; margin: 0 0 20px; }
-  .hint { background: #f3f4f6; padding: 8px 12px; border-radius: 6px;
-          font: 10pt/1.4 system-ui, sans-serif; color: #374151; margin-bottom: 20px; }
+  /* A button, not an instruction to press Ctrl+P.
+     There is no Ctrl+P on a phone, so the only way to save this was from a
+     desktop. The browser's own print dialogue is what produces the PDF —
+     tapping the button opens it, and on iOS and Android that dialogue offers
+     "Save as PDF" the same way it does on a laptop. */
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+             background: #f3f4f6; padding: 10px 12px; border-radius: 6px;
+             font: 10pt/1.4 system-ui, sans-serif; color: #374151;
+             margin-bottom: 20px; }
+  .toolbar button { font: 600 10pt system-ui, sans-serif; cursor: pointer;
+                    background: #4338ca; color: #fff; border: 0;
+                    padding: 8px 14px; border-radius: 6px; }
+  .toolbar button:hover { background: #3730a3; }
+  .toolbar span { flex: 1 1 14rem; min-width: 0; }
   article { border-top: 1px solid #ddd; padding: 14px 0; break-inside: avoid; }
   article header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
   .num { font-weight: 700; font-size: 13pt; }
@@ -144,18 +162,28 @@ export async function GET(
   .stem p { margin: 0 0 6px; }
   .options { list-style: none; margin: 8px 0 0; padding: 0; }
   .options li { padding: 3px 0 3px 4px; }
-  .options li.right { background: #ecfdf5; border-left: 3px solid #059669; padding-left: 8px; }
-  .key { font: 8pt system-ui, sans-serif; color: #059669; text-transform: uppercase;
-         letter-spacing: .06em; margin-left: 6px; }
+  /* Deeper than the on-screen tints, and forced to survive printing.
+     The palest shades read almost white once a browser renders to PDF, and
+     Chrome drops backgrounds entirely unless print-color-adjust says
+     otherwise — so the correct answer and the explanation, the two things
+     someone proof-reading is looking for, were the hardest parts to see. */
+  .options li.right { background: #d1fae5; border-left: 4px solid #047857;
+                      padding-left: 8px; }
+  .key { font: 8pt system-ui, sans-serif; color: #047857; font-weight: 700;
+         text-transform: uppercase; letter-spacing: .06em; margin-left: 6px; }
   .warn { font: 9pt system-ui, sans-serif; color: #b91c1c; margin: 6px 0 0; }
-  .explanation { margin-top: 10px; padding: 10px 12px; background: #fffbeb;
-                 border-left: 3px solid #f59e0b; font-size: 11pt; }
+  .explanation { margin-top: 10px; padding: 10px 12px; background: #fef3c7;
+                 border-left: 4px solid #d97706; font-size: 11pt; }
   .explanation p { margin: 4px 0 0; }
   .explanation b { font: 9pt system-ui, sans-serif; text-transform: uppercase;
-                   letter-spacing: .06em; color: #92400e; }
+                   letter-spacing: .06em; color: #b45309; font-weight: 700; }
+  /* Without this a browser prints the tints as plain white paper. */
+  .options li.right, .explanation {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
   @media print {
     body { padding: 0; max-width: none; }
-    .hint { display: none; }
+    .toolbar { display: none; }
   }
 </style>
 </head>
@@ -165,8 +193,10 @@ export async function GET(
     ${test.totalQuestions} question${test.totalQuestions === 1 ? '' : 's'} ·
     ${test.totalMarks} marks · ${test.durationMinutes} minutes · ${escape(test.slug)}
   </p>
-  <p class="hint">Print this page (Ctrl/Cmd&nbsp;+&nbsp;P) and choose "Save as PDF".
-  The answer key and explanations are included — this is a staff document.</p>
+  <div class="toolbar">
+    <button type="button" onclick="window.print()">Download PDF</button>
+    <span>The answer key and explanations are included — this is a staff document.</span>
+  </div>
   ${rows || '<p>This paper has no questions yet.</p>'}
 </body>
 </html>`;
