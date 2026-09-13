@@ -117,24 +117,31 @@ export default async function DashboardPage() {
               <ol className="mt-4 space-y-2">
                 {purchased.map((course, index) => (
                   <li key={course.id}>
+                    {/* Carries the brand colour, matching the cards below it.
+                        These are the courses a student has already paid for —
+                        the things they came to the dashboard to open — and in
+                        plain grey they read as less important than the ones
+                        still being sold underneath. */}
                     <Link
                       href={course.href}
-                      className="flex items-center gap-3 rounded-xl border border-border px-4 py-3 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="flex items-center gap-3 rounded-xl border border-primary/25 bg-gradient-to-br from-primary-muted/70 to-primary-muted/25 px-4 py-3 shadow-subtle transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <span
-                        className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-muted text-sm font-semibold tabular-nums text-primary"
+                        className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold tabular-nums text-primary-foreground"
                         aria-hidden="true"
                       >
                         {index + 1}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block font-semibold leading-tight">{course.name}</span>
+                        <span className="block font-semibold leading-tight text-primary">
+                          {course.name}
+                        </span>
                         <span className="mt-0.5 block text-xs text-muted-foreground">
                           {course.blurb}
                         </span>
                       </span>
                       <ArrowRight
-                        className="size-4 shrink-0 text-muted-foreground"
+                        className="size-4 shrink-0 text-primary"
                         aria-hidden="true"
                       />
                     </Link>
