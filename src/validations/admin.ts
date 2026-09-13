@@ -134,7 +134,24 @@ export const testSchema = z.object({
   category: z
     .enum(['FULL_MOCK', 'SECTIONAL', 'CHAPTER', 'TOPIC', 'PRACTICE', 'PREVIOUS_YEAR', 'CUSTOM'])
     .default('FULL_MOCK'),
-  mode: z.enum(['EXAM', 'PRACTICE']).default('EXAM'),
+  /**
+   * How the paper runs. Only PRACTICE reveals answers as a student goes.
+   *
+   * An unrecognised value is corrected to EXAM rather than refused. The column
+   * is a plain string with no constraint, so a word from an earlier vocabulary
+   * can be sitting in it — and the builder has no mode field, so it loads that
+   * value, carries it invisibly and posts it back. Refusing it made saving a
+   * KAS-50 day paper impossible with nothing on the form to fix: "Invalid enum
+   * value. Expected 'EXAM' | 'PRACTICE', received 'TIMED'".
+   *
+   * EXAM is the safe correction. PRACTICE is what hands a student the answer
+   * key mid-paper, so it is only ever set deliberately, never inferred from
+   * something unrecognised.
+   */
+  mode: z
+    .string()
+    .transform((value) => (value === 'PRACTICE' ? 'PRACTICE' : 'EXAM'))
+    .default('EXAM'),
   status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).default('DRAFT'),
   accessType: z.enum(['FREE', 'PAID', 'SUBSCRIPTION']).default('FREE'),
 

@@ -37,6 +37,8 @@
     "db:figures": "tsx prisma/backfill-figures.ts",
     "db:hide-empty": "tsx prisma/hide-empty-tests.ts",
     "db:pyq-durations": "tsx prisma/set-pyq-subject-durations.ts",
+    "db:offline": "tsx prisma/set-offline-enrolments.ts",
+    "db:fix-modes": "tsx prisma/fix-test-modes.ts",
     "db:free-tests": "tsx prisma/build-free-tests.ts",
     "db:reformat": "tsx prisma/reformat-questions.ts",
     "db:50days": "tsx prisma/seed-50-days.ts",
