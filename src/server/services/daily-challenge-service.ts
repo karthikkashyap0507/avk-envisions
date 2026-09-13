@@ -44,6 +44,13 @@ export interface ChallengeDay {
   /** The paper for today, by its own date. */
   isToday: boolean;
   hasSynopsis: boolean;
+  /**
+   * Whether the student may still sit this paper.
+   *
+   * True while the retry allowance holds, and always true where the paper is
+   * set to unlimited attempts (`maxAttempts` 0), which is how these ship.
+   */
+  canRetake: boolean;
   /** The signed-in student's finished attempt, if any. */
   attempt: { id: string; score: number; maxScore: number; submittedAt: Date | null } | null;
 }
@@ -95,6 +102,7 @@ export async function getChallenge(userId?: string | null): Promise<ChallengeOve
           startDate: true,
           durationMinutes: true,
           totalQuestions: true,
+          maxAttempts: true,
           synopsisFileName: true,
         },
       },
@@ -119,8 +127,11 @@ export async function getChallenge(userId?: string | null): Promise<ChallengeOve
 
   // Keeps the most recent attempt per paper, since the list is newest first.
   const attemptFor = new Map<string, (typeof attempts)[number]>();
+  // And how many have been finished, which is what the retry allowance counts.
+  const attemptCount = new Map<string, number>();
   for (const attempt of attempts) {
     if (!attemptFor.has(attempt.testId)) attemptFor.set(attempt.testId, attempt);
+    attemptCount.set(attempt.testId, (attemptCount.get(attempt.testId) ?? 0) + 1);
   }
 
   const today = startOfToday();
@@ -148,6 +159,12 @@ export async function getChallenge(userId?: string | null): Promise<ChallengeOve
         durationMinutes: test.durationMinutes,
         opensAt,
         isAvailable: isOpen && test.status === 'PUBLISHED' && test.totalQuestions > 0,
+        // Whether the student may sit it again. 0 means unlimited, which is
+        // the setting these papers ship with — and the page was still offering
+        // only "Result" after one attempt, so an unlimited paper could never
+        // actually be retaken from here.
+        canRetake:
+          test.maxAttempts === 0 || (attemptCount.get(test.id) ?? 0) < test.maxAttempts,
         isToday: opensAt !== null && opensAt >= today && opensAt < tomorrow,
         hasSynopsis: Boolean(test.synopsisFileName),
         attempt: attempt

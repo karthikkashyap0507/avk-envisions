@@ -342,23 +342,38 @@ export default async function FiftyDaysPage({
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-center gap-2">
                             {day.isAvailable ? (
-                              <Link
-                                href={
-                                  day.attempt
-                                    ? `/test/${day.testId}/result`
-                                    : `/start/${day.testId}`
-                                }
-                                className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                              >
-                                {day.attempt ? (
-                                  <>
+                              <>
+                                {/* Sitting the paper comes first while the
+                                    student may still sit it. These are set to
+                                    unlimited attempts, and offering only
+                                    "Result" after one go meant an unlimited
+                                    paper could never be retaken from here. */}
+                                {day.canRetake && (
+                                  <Link
+                                    href={`/start/${day.testId}`}
+                                    className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                                  >
+                                    {day.attempt ? 'Retake' : 'Take Test'}
+                                  </Link>
+                                )}
+
+                                {/* Keyed on the attempt, not the paper. The
+                                    result page resolves an attempt id, so
+                                    passing the test id here 404'd. */}
+                                {day.attempt && (
+                                  <Link
+                                    href={`/test/${day.attempt.id}/result`}
+                                    className={
+                                      day.canRetake
+                                        ? 'inline-flex items-center gap-1 rounded-lg border border-primary/40 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary-muted/50'
+                                        : 'inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90'
+                                    }
+                                  >
                                     <CheckCircle2 className="size-3.5" aria-hidden="true" />
                                     Result
-                                  </>
-                                ) : (
-                                  'Take Test'
+                                  </Link>
                                 )}
-                              </Link>
+                              </>
                             ) : (
                               <span className="inline-flex items-center gap-1 rounded-lg bg-muted px-3 py-2 text-xs font-medium text-muted-foreground">
                                 <Lock className="size-3.5" aria-hidden="true" />
