@@ -639,6 +639,19 @@ model TestSeries {
   tier2PriceInPaise Int?
   tier2Limit        Int?
 
+  /// Buyers who paid outside the site, and so hold no entitlement row.
+  ///
+  /// Payment by UPI or bank transfer, and anyone who joined before the site
+  /// took payments, leaves no record here — so the enrolled count read from
+  /// entitlements alone understates how many people have actually bought. It
+  /// is added to the live count wherever enrolment is counted, which is the
+  /// same number that decides the early-bird tier and the price at checkout,
+  /// so the seats shown and the price charged cannot disagree.
+  ///
+  /// Set by an admin against a real roll of buyers. It is a correction to an
+  /// undercount, never a way to make a series look busier than it is.
+  offlineEnrolments Int @default(0)
+
   /// Lucide icon name rendered on the catalogue widget.
   iconName String?
   /// Accent colour for the widget card, as a hex string.

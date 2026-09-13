@@ -58,14 +58,26 @@ interface SeriesPricingInput {
 /** Counts everyone holding live, unrevoked access to a series. */
 export async function countEnrolled(testSeriesId: string): Promise<number> {
   const now = new Date();
-  return db.entitlement.count({
-    where: {
-      testSeriesId,
-      revokedAt: null,
-      startsAt: { lte: now },
-      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-    },
-  });
+
+  // Both halves, exactly as `countEnrolledMany` does it. This is the count
+  // checkout prices against, so if it ignored the offline buyers the page
+  // could offer a seat the payment step had already priced out of the tier.
+  const [tracked, series] = await Promise.all([
+    db.entitlement.count({
+      where: {
+        testSeriesId,
+        revokedAt: null,
+        startsAt: { lte: now },
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+    }),
+    db.testSeries.findUnique({
+      where: { id: testSeriesId },
+      select: { offlineEnrolments: true },
+    }),
+  ]);
+
+  return tracked + (series?.offlineEnrolments ?? 0);
 }
 
 /**
@@ -190,5 +202,21 @@ export async function countEnrolledMany(testSeriesIds: string[]): Promise<Map<st
   for (const row of rows) {
     if (row.testSeriesId) counts.set(row.testSeriesId, row._count._all);
   }
+
+  // Buyers who paid outside the site hold no entitlement row, so the query
+  // above undercounts them. Added here rather than at each call site because
+  // this one number decides three things that must agree: how many seats the
+  // page says are left, which tier the ladder is on, and what checkout
+  // charges. Adding it further out would let the seats shown drift from the
+  // price actually taken.
+  const offline = await db.testSeries.findMany({
+    where: { id: { in: testSeriesIds }, offlineEnrolments: { gt: 0 } },
+    select: { id: true, offlineEnrolments: true },
+  });
+
+  for (const series of offline) {
+    counts.set(series.id, (counts.get(series.id) ?? 0) + series.offlineEnrolments);
+  }
+
   return counts;
 }
