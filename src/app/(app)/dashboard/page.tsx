@@ -26,7 +26,6 @@ import {
   getResumableAttempt,
   getSubjectBreakdown,
   getTopicInsights,
-  getUpcomingTests,
 } from '@/server/services/dashboard-service';
 import { db } from '@/server/db';
 import { getAvailableCourses, getPurchasedCourses } from '@/server/services/purchased-service';
@@ -52,7 +51,6 @@ export default async function DashboardPage() {
     resumable,
     insights,
     subjects,
-    upcoming,
     incorrectCount,
     purchased,
     available,
@@ -62,7 +60,6 @@ export default async function DashboardPage() {
       getResumableAttempt(user.id),
       getTopicInsights(user.id),
       getSubjectBreakdown(user.id),
-      getUpcomingTests(),
       db.testAnswer.count({ where: { attempt: { userId: user.id }, isCorrect: false } }),
       getPurchasedCourses(user.id),
       getAvailableCourses(user.id),
@@ -503,24 +500,6 @@ export default async function DashboardPage() {
             </Card>
           )}
 
-          {/* Upcoming */}
-          {upcoming.length > 0 && (
-            <Card>
-              <CardContent className="p-5 sm:p-6">
-                <h2 className="font-semibold tracking-tight">Scheduled</h2>
-                <ul className="mt-4 space-y-3">
-                  {upcoming.map((test) => (
-                    <li key={test.id} className="text-sm">
-                      <p className="font-medium leading-tight">{test.title}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        Opens {formatDate(test.startDate, 'full')}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
     </div>
