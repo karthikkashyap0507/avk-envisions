@@ -235,3 +235,93 @@ export async function getAvailableCourses(userId: string): Promise<AvailableCour
 
   return courses;
 }
+
+export interface OpenableSeries {
+  id: string;
+  name: string;
+  /** Where the student goes to pick a paper. */
+  href: string;
+  blurb: string;
+  /** Papers a student can actually sit today. */
+  readyCount: number;
+  /** Papers on the published plan, written or not. */
+  totalCount: number;
+  /** Free series come first, then what they bought. */
+  isFree: boolean;
+}
+
+/**
+ * The series a student can open, as series rather than as papers.
+ *
+ * "My tests" listed every individual paper with its own Start button. With the
+ * free series, the previous-year papers and their subject-wise drills all
+ * published, that is dozens of near-identical cards on one screen — and the
+ * ones a student had paid for were not among them, because the list only ever
+ * queried free tests.
+ *
+ * One card per series fixes both: the page says what you have access to, and
+ * the series page is where you choose a paper. That page already exists, knows
+ * which papers are open, and shows the schedule beside them.
+ *
+ * A paid series appears only where the student holds it. A free one always
+ * does, since anyone signed in can sit it.
+ */
+export async function getOpenableSeries(userId: string): Promise<OpenableSeries[]> {
+  const series = await db.testSeries.findMany({
+    where: {
+      deletedAt: null,
+      status: 'PUBLISHED',
+      // Nothing empty. A series with no published paper has nothing to open,
+      // and a card leading to an empty list is worse than no card.
+      tests: { some: { deletedAt: null, status: 'PUBLISHED' } },
+    },
+    orderBy: { sortOrder: 'asc' },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      priceInPaise: true,
+      tests: {
+        where: { deletedAt: null, status: 'PUBLISHED' },
+        select: { totalQuestions: true, startDate: true },
+      },
+    },
+  });
+
+  const now = new Date();
+  const open: OpenableSeries[] = [];
+  const seen = new Set<string>();
+
+  for (const row of series) {
+    const isFree = row.priceInPaise === 0;
+
+    // Paid means owned. `hasEntitlement` is the same check the rest of the
+    // site uses, so a bundle correctly opens every year inside it.
+    if (!isFree && !(await hasEntitlement(userId, row.id))) continue;
+
+    const destination = destinationFor(row.slug, row.name);
+
+    // The previous-year years all resolve to /pyq, and the bundle with them.
+    // One card, not one per year.
+    if (seen.has(destination.href)) continue;
+    seen.add(destination.href);
+
+    const ready = row.tests.filter(
+      (test) => test.totalQuestions > 0 && (test.startDate === null || test.startDate <= now),
+    ).length;
+
+    open.push({
+      id: row.id,
+      name: destination.name,
+      href: destination.href,
+      blurb: destination.blurb,
+      readyCount: ready,
+      totalCount: row.tests.length,
+      isFree,
+    });
+  }
+
+  // Free first — it is what a new student can start without paying — then the
+  // courses they own, in catalogue order.
+  return open.sort((a, b) => (a.isFree === b.isFree ? 0 : a.isFree ? -1 : 1));
+}

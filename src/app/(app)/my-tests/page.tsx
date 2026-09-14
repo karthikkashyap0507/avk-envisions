@@ -10,6 +10,7 @@ import { TERMINAL_ATTEMPT_STATUSES, TEST_CATEGORY_LABELS, type TestCategory } fr
 import { formatDate, formatDuration, ordinal } from '@/lib/utils';
 import { enforceStudent } from '@/server/auth/guards';
 import { db } from '@/server/db';
+import { getOpenableSeries } from '@/server/services/purchased-service';
 
 export const metadata: Metadata = {
   title: 'My tests',
@@ -50,45 +51,12 @@ export default async function MyTestsPage() {
         test: { select: { id: true, title: true, category: true } },
       },
     }),
-    // Free tests are all that can be opened until the commerce phase lands;
-    // advertising a paid test the student cannot start would be worse than
-    // showing a shorter list.
-    db.test.findMany({
-      where: {
-        status: 'PUBLISHED',
-        deletedAt: null,
-        accessType: 'FREE',
-        OR: [{ startDate: null }, { startDate: { lte: new Date() } }],
-      },
-      orderBy: [{ publishedAt: 'desc' }],
-      take: 12,
-      select: {
-        id: true,
-        title: true,
-        category: true,
-        durationMinutes: true,
-        totalQuestions: true,
-        totalMarks: true,
-        maxAttempts: true,
-        paperNumber: true,
-        exam: { select: { shortName: true } },
-        _count: { select: { attempts: { where: { userId: user.id } } } },
-      },
-    }),
+    // The series a student can open, not every paper inside them. Listing
+    // each paper put dozens of near-identical cards on one screen, and the
+    // query behind it only ever looked at free tests — so a course they had
+    // paid for did not appear here at all.
+    getOpenableSeries(user.id),
   ]);
-
-  // Full-length papers first, then the subject-wise drills. A student opening
-  // this list wants the paper itself; the subdivisions are what they come back
-  // to afterwards. Sorted here rather than in the query because "papers before
-  // subject tests, each in its own natural order" is two different orderings,
-  // and `paperNumber` is null on subject tests.
-  const availableOrdered = [...available].sort((a, b) => {
-    const aFull = a.paperNumber !== null;
-    const bFull = b.paperNumber !== null;
-    if (aFull !== bFull) return aFull ? -1 : 1;
-    if (aFull && bFull) return (a.paperNumber ?? 0) - (b.paperNumber ?? 0);
-    return a.title.localeCompare(b.title);
-  });
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
@@ -134,77 +102,59 @@ export default async function MyTestsPage() {
         </section>
       )}
 
-      {/* Available ------------------------------------------------------ */}
+      {/* What they can open ---------------------------------------------- */}
       <section aria-labelledby="available-heading">
         <h2 id="available-heading" className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Available to attempt
+          Your test series
         </h2>
 
-        {availableOrdered.length === 0 ? (
+        {available.length === 0 ? (
           <EmptyState
             className="mt-3"
             size="sm"
             icon={FileQuestion}
-            title="No tests available right now"
-            description="New tests appear here as soon as they are published."
+            title="No test series available yet"
+            description="Free series appear here as soon as they are published, along with anything you buy."
             action={{ label: 'Browse test series', href: '/test-series' }}
           />
         ) : (
           <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {availableOrdered.map((test) => {
-              const used = test._count.attempts;
-              const exhausted = test.maxAttempts > 0 && used >= test.maxAttempts;
+            {available.map((series) => (
+              <Card key={series.id} interactive className="h-full">
+                <CardContent className="flex h-full flex-col p-5">
+                  <div className="flex items-center gap-2">
+                    <Badge variant={series.isFree ? 'success' : 'brand'} size="sm">
+                      {series.isFree ? 'Free' : 'Purchased'}
+                    </Badge>
+                  </div>
 
-              return (
-                <Card key={test.id} interactive={!exhausted} className="h-full">
-                  <CardContent className="flex h-full flex-col p-5">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="brand" size="sm">
-                        {test.exam.shortName}
-                      </Badge>
-                      <Badge variant="muted" size="sm">
-                        {TEST_CATEGORY_LABELS[test.category as TestCategory] ?? test.category}
-                      </Badge>
-                    </div>
+                  <h3 className="mt-3 font-semibold leading-snug tracking-tight">{series.name}</h3>
+                  <p className="mt-1 flex-1 text-xs leading-relaxed text-muted-foreground">
+                    {series.blurb}
+                  </p>
 
-                    <h3 className="mt-3 flex-1 font-semibold leading-snug tracking-tight">
-                      {test.title}
-                    </h3>
+                  {/* How much is sittable today, against the published plan.
+                      A series part-written says so rather than implying every
+                      paper is ready. */}
+                  <p className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
+                    <FileQuestion className="size-3.5" aria-hidden="true" />
+                    {series.readyCount === series.totalCount
+                      ? `${series.totalCount} ${series.totalCount === 1 ? 'test' : 'tests'}`
+                      : `${series.readyCount} of ${series.totalCount} ready to attempt`}
+                  </p>
 
-                    <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Clock className="size-3.5" aria-hidden="true" />
-                        {formatDuration(test.durationMinutes * 60)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <FileQuestion className="size-3.5" aria-hidden="true" />
-                        {test.totalQuestions} questions
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Trophy className="size-3.5" aria-hidden="true" />
-                        {test.totalMarks} marks
-                      </span>
-                    </p>
-
-                    <Button
-                      asChild={!exhausted}
-                      fullWidth
-                      className="mt-4"
-                      variant={used > 0 ? 'outline' : 'default'}
-                      disabled={exhausted}
-                    >
-                      {exhausted ? (
-                        <span>Attempts used</span>
-                      ) : (
-                        <Link href={`/test/${test.id}`}>
-                          {used > 0 ? 'Attempt again' : 'Start test'}
-                        </Link>
-                      )}
-                    </Button>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                  {/* One button per series. The series page is where a paper
+                      is chosen — it already knows which are open and shows the
+                      schedule beside them. */}
+                  <Button asChild fullWidth className="mt-4">
+                    <Link href={series.href}>
+                      Open series
+                      <ArrowRight aria-hidden="true" />
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
       </section>

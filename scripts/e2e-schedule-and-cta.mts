@@ -8,7 +8,7 @@
  *   nothing said how many of the discounted places were left
  *   the practice solution sat above Previous/Next, pushing them off a phone
  *
- * and the PYQ subject-wise tests were to run at 1.2 seconds per question.
+ * and the drill papers were to run at 1.2 minutes per question.
  */
 import { chromium, type Page } from 'playwright';
 import { PrismaClient } from '@prisma/client';
@@ -200,14 +200,14 @@ async function pyqDurations() {
     select: { slug: true, durationMinutes: true, totalQuestions: true },
   });
 
-  // 1.2 seconds a question, floored at the one minute the column can hold.
-  const want = (questions: number) => Math.max(1, Math.ceil((questions * 1.2) / 60));
+  // 1.2 minutes a question, the real prelims pattern.
+  const want = (questions: number) => Math.max(1, Math.round(questions * 1.2));
 
   const withQuestions = subject.filter((t) => t.totalQuestions > 0);
   const wrong = withQuestions.filter((t) => t.durationMinutes !== want(t.totalQuestions));
   log(
     wrong.length === 0,
-    'every written subject-wise PYQ test runs at 1.2 seconds a question',
+    'every written subject-wise PYQ test runs at 1.2 minutes a question',
     wrong.length ? wrong.map((t) => `${t.slug} ${t.durationMinutes}m`).join(', ') : `${withQuestions.length} checked`,
   );
 

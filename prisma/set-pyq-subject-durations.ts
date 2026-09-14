@@ -1,22 +1,22 @@
 /**
- * Times the PYQ subject-wise tests at 1.2 seconds per question.
+ * Times a paper at 1.2 minutes per question.
  *
- * The durations were fixed per subject and ignored how long the test actually
- * was: History ran 29 minutes whether it held 35 questions or none, and the
- * 2011 Current Affairs test gave 38 questions the same 14 minutes that
- * Geography got for 11. Whatever the rate, a duration that does not follow the
- * question count is wrong for most of the tests it applies to.
+ * That is the KAS Prelims pattern — 100 questions in 120 minutes — and it is
+ * what the full-length papers already run at. The subject-wise, chapterwise
+ * and free tests did not follow it: durations were fixed per subject and
+ * ignored how long the paper actually was, so History ran 29 minutes whether
+ * it held 35 questions or none, and the 2011 Current Affairs test gave 38
+ * questions the same 14 minutes Geography got for 11.
  *
- * The rate is the one the client specified, and it is deliberately severe:
- * 1.2 seconds per question puts every one of these tests at the one-minute
- * floor, so a 35-question paper allows roughly 1.7 seconds a question. That is
- * the instruction, recorded here so the number is not mistaken later for an
- * accident. The full-length papers are left alone at 120 minutes — they follow
- * the real Prelims pattern and were not part of the request.
+ * This replaces an earlier pass that read the rate as 1.2 SECONDS per
+ * question. That put every one of these tests at the one-minute floor — a
+ * 38-question paper allowing 1.6 seconds an answer, which auto-submits before
+ * anyone can read the first line.
  *
- * Tests with no questions yet keep what they have. Their count is unknown
- * rather than genuinely zero, and pinning them to the floor now would just have
- * to be undone the moment their questions are imported.
+ * Full-length papers are matched by the same rule and already satisfy it, so
+ * they are left where they are. Tests with no questions yet keep what they
+ * have: their count is unknown rather than zero, and timing them now would
+ * only have to be undone when the questions land.
  *
  *   npm run db:pyq-durations -- --dry-run
  *
@@ -27,25 +27,27 @@ import { PrismaClient } from '@prisma/client';
 const db = new PrismaClient();
 const DRY_RUN = process.argv.includes('--dry-run');
 
-/** Seconds a student gets per question on these tests. */
-const SECONDS_PER_QUESTION = 1.2;
+/** Minutes a student gets per question, from the real prelims pattern. */
+const MINUTES_PER_QUESTION = 1.2;
 
 /** No test can be shorter than this; the column is whole minutes. */
 const FLOOR_MINUTES = 1;
 
 export function durationFor(questionCount: number): number {
-  return Math.max(FLOOR_MINUTES, Math.ceil((questionCount * SECONDS_PER_QUESTION) / 60));
+  return Math.max(FLOOR_MINUTES, Math.round(questionCount * MINUTES_PER_QUESTION));
 }
 
 async function main() {
-  // Subject-wise only. The slug carries the distinction the title does not:
-  // every one of these reads `kas-pyq-<year>-subject-<name>`, while the
-  // full-length papers end in `-paper-1` / `-paper-2`.
+  // Every paper a student drills on: the previous-year papers and their
+  // subject splits, the chapterwise sets, and the free series.
   const tests = await db.test.findMany({
     where: {
       deletedAt: null,
-      slug: { contains: '-subject-' },
-      testSeries: { slug: { startsWith: 'kas-pyq-' } },
+      OR: [
+        { testSeries: { slug: { startsWith: 'kas-pyq-' } } },
+        { testSeries: { slug: { startsWith: 'chapterwise-' } } },
+        { testSeries: { slug: 'kas-prelims-free-test-series' } },
+      ],
     },
     select: { id: true, slug: true, durationMinutes: true, totalQuestions: true },
     orderBy: { slug: 'asc' },
@@ -53,20 +55,26 @@ async function main() {
 
   const changes = tests
     .filter((test) => test.totalQuestions > 0)
+    // A full-length paper keeps its 120 minutes. Timing it by its own count
+    // would cut the ones holding 91 or 97 questions to 109 or 116, when the
+    // whole point of a simulation is that it runs the length of the real
+    // exam — a short paper there is a question the client has yet to add,
+    // not a shorter sitting.
+    .filter((test) => !/-paper-[12]$/.test(test.slug))
     .map((test) => ({ ...test, want: durationFor(test.totalQuestions) }))
     .filter((test) => test.want !== test.durationMinutes);
 
   const skipped = tests.filter((test) => test.totalQuestions === 0).length;
 
   console.log(
-    `${tests.length} subject-wise PYQ tests · ${changes.length} to retime · ` +
+    `${tests.length} drill paper(s) · ${changes.length} to retime · ` +
       `${skipped} still empty, left as they are`,
   );
 
   for (const test of changes) {
     console.log(
       `  ${test.slug.padEnd(46)} ${String(test.durationMinutes).padStart(4)}m → ` +
-        `${String(test.want).padStart(3)}m  (${test.totalQuestions} questions)`,
+        `${String(test.want).padStart(4)}m  (${test.totalQuestions} questions)`,
     );
   }
 
