@@ -3,7 +3,6 @@ import Link from 'next/link';
 import {
   ArrowRight,
   BookOpenCheck,
-  Clock,
   Flame,
   Gauge,
   PlayCircle,
@@ -19,13 +18,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { StatCard } from '@/components/ui/stat-card';
 import { EmptyState } from '@/components/ui/states';
-import { TEST_CATEGORY_LABELS, type TestCategory } from '@/lib/enums';
 import { formatDate, formatDuration, formatNumber, formatPaise, ordinal } from '@/lib/utils';
 import { enforceStudent } from '@/server/auth/guards';
 import {
   buildRecommendations,
   getDashboardSummary,
-  getRecommendedTests,
   getResumableAttempt,
   getSubjectBreakdown,
   getTopicInsights,
@@ -55,7 +52,6 @@ export default async function DashboardPage() {
     resumable,
     insights,
     subjects,
-    recommended,
     upcoming,
     incorrectCount,
     purchased,
@@ -66,7 +62,6 @@ export default async function DashboardPage() {
       getResumableAttempt(user.id),
       getTopicInsights(user.id),
       getSubjectBreakdown(user.id),
-      getRecommendedTests(user.id),
       getUpcomingTests(),
       db.testAnswer.count({ where: { attempt: { userId: user.id }, isCorrect: false } }),
       getPurchasedCourses(user.id),
@@ -507,47 +502,6 @@ export default async function DashboardPage() {
               </CardContent>
             </Card>
           )}
-
-          {/* Recommended tests */}
-          <Card>
-            <CardContent className="p-5 sm:p-6">
-              <h2 className="font-semibold tracking-tight">Available now</h2>
-
-              {recommended.length === 0 ? (
-                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                  You have attempted every free test available. Explore the full test series for
-                  more.
-                </p>
-              ) : (
-                <ul className="mt-4 space-y-3">
-                  {recommended.map((test) => (
-                    <li key={test.id}>
-                      <Link
-                        href={`/test/${test.id}`}
-                        className="group block rounded-lg border border-border p-3.5 transition-all hover:-translate-y-0.5 hover:shadow-card"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Badge variant="brand" size="sm">
-                            {test.exam.shortName}
-                          </Badge>
-                          <Badge variant="muted" size="sm">
-                            {TEST_CATEGORY_LABELS[test.category as TestCategory] ?? test.category}
-                          </Badge>
-                        </div>
-                        <p className="mt-2 text-sm font-medium leading-tight transition-colors group-hover:text-primary">
-                          {test.title}
-                        </p>
-                        <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                          <Clock className="size-3.5" aria-hidden="true" />
-                          {test.durationMinutes} min · {test.totalQuestions} questions
-                        </p>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
 
           {/* Upcoming */}
           {upcoming.length > 0 && (
