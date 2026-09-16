@@ -188,6 +188,66 @@ async function practiceSolution(page: Page) {
   );
 }
 
+/**
+ * The same enrolment bar on KAS-50 as on the paid series.
+ *
+ * One shared component, two series. What matters is that each page reads its
+ * OWN count rather than both showing whichever was resolved first, so the
+ * counts are set differently here and each page is asked for its own.
+ */
+async function kasFiftyEnrolment(page: Page) {
+  console.log('\n-- The enrolment bar on KAS-50 --');
+
+  const kas = await db.testSeries.findFirst({
+    where: { slug: 'kas-50-questions-50-days', deletedAt: null },
+    select: { id: true, offlineEnrolments: true, tier1Limit: true },
+  });
+  const paid = await db.testSeries.findFirstOrThrow({
+    where: { slug: PAID },
+    select: { id: true, offlineEnrolments: true },
+  });
+
+  if (!kas || kas.tier1Limit === null) {
+    console.log('  (KAS-50 has no capped tier to report)');
+    return;
+  }
+
+  const was = { kas: kas.offlineEnrolments, paid: paid.offlineEnrolments };
+
+  try {
+    // Deliberately different, so a page showing the other one's figure fails.
+    await db.testSeries.update({ where: { id: kas.id }, data: { offlineEnrolments: 17 } });
+    await db.testSeries.update({ where: { id: paid.id }, data: { offlineEnrolments: 39 } });
+
+    await page.goto(`${BASE}/50-days`, { waitUntil: 'networkidle' });
+    const kasBody = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
+
+    log(/joined/i.test(kasBody), 'KAS-50 shows the enrolment bar');
+    log(
+      kasBody.includes('17 people have joined'),
+      'with its own count, not the one from the paid series',
+      kasBody.match(/(\d+) people have joined/)?.[0] ?? 'none',
+    );
+    log(
+      kasBody.includes(`${kas.tier1Limit - 17} left`),
+      'and the places left follow from it',
+      `${kas.tier1Limit - 17} left of ${kas.tier1Limit}`,
+    );
+
+    // The paid series must still report its own, unchanged.
+    await page.goto(`${BASE}/test-series/${PAID}`, { waitUntil: 'networkidle' });
+    const paidBody = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
+    log(
+      paidBody.includes('39 people have joined'),
+      'and the paid series still reports its own',
+      paidBody.match(/(\d+) people have joined/)?.[0] ?? 'none',
+    );
+  } finally {
+    await db.testSeries.update({ where: { id: kas.id }, data: { offlineEnrolments: was.kas } });
+    await db.testSeries.update({ where: { id: paid.id }, data: { offlineEnrolments: was.paid } });
+  }
+}
+
 async function pyqDurations() {
   console.log('\n-- PYQ subject-wise durations --');
 
@@ -244,6 +304,7 @@ async function main() {
 
     await paidSeriesPage(page);
     await practiceSolution(page);
+    await kasFiftyEnrolment(page);
     await pyqDurations();
 
     await page.close();
