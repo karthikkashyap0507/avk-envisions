@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress, ProgressRing } from '@/components/ui/progress';
 import { MiniStat } from '@/components/ui/stat-card';
-import { formatDuration, ordinal, round } from '@/lib/utils';
+import { cn, formatDuration, ordinal, round } from '@/lib/utils';
 import { enforceStudent } from '@/server/auth/guards';
 import { db } from '@/server/db';
 import { getAttemptResult, submitAttempt } from '@/server/services/attempt-service';
@@ -428,17 +428,29 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
                     // a long review can still be folded away question by
                     // question.
                     open
-                    className="group rounded-xl border border-border bg-card"
+                    // The left stripe carries the verdict in colour, so a long
+                    // review can be skimmed down the edge without reading the
+                    // badges: green ran right, red ran wrong, amber skipped.
+                    className={cn(
+                      'group overflow-hidden rounded-xl border-l-4 bg-card shadow-sm transition-shadow hover:shadow-md',
+                      'border-y border-r border-border',
+                      verdict === 'correct'
+                        ? 'border-l-success'
+                        : verdict === 'incorrect'
+                          ? 'border-l-destructive'
+                          : 'border-l-warning',
+                    )}
                   >
                     <summary className="flex cursor-pointer list-none items-start gap-3 p-4 [&::-webkit-details-marker]:hidden">
                       <span
-                        className={
+                        className={cn(
+                          'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg text-white shadow-sm',
                           verdict === 'correct'
-                            ? 'mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-success/10 text-success'
+                            ? 'bg-success'
                             : verdict === 'incorrect'
-                              ? 'mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive'
-                              : 'mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground'
-                        }
+                              ? 'bg-destructive'
+                              : 'bg-warning',
+                        )}
                         aria-hidden="true"
                       >
                         {verdict === 'correct' ? (
@@ -461,7 +473,7 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
                                 ? 'success'
                                 : verdict === 'incorrect'
                                   ? 'danger'
-                                  : 'muted'
+                                  : 'warning'
                             }
                             size="sm"
                           >
@@ -483,7 +495,7 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
                           </span>
                         </div>
 
-                        <p className="mt-1.5 line-clamp-2 whitespace-pre-line text-sm leading-relaxed group-open:line-clamp-none">
+                        <p className="mt-2 line-clamp-2 whitespace-pre-line text-[0.95rem] font-medium leading-relaxed group-open:line-clamp-none">
                           {item.body}
                         </p>
                       </div>
@@ -516,22 +528,24 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
                           {item.options.map((option) => (
                             <li
                               key={option.id}
-                              className={
+                              className={cn(
+                                'flex items-start gap-3 rounded-lg border p-3 transition-colors',
                                 option.isCorrect
-                                  ? 'flex items-start gap-3 rounded-lg border border-success/40 bg-success/5 p-3'
+                                  ? 'border-success/50 bg-success/10 ring-1 ring-success/20'
                                   : option.isSelected
-                                    ? 'flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-3'
-                                    : 'flex items-start gap-3 rounded-lg border border-border p-3'
-                              }
+                                    ? 'border-destructive/50 bg-destructive/10'
+                                    : 'border-border bg-background hover:bg-muted/40',
+                              )}
                             >
                               <span
-                                className={
+                                className={cn(
+                                  'flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold',
                                   option.isCorrect
-                                    ? 'flex size-6 shrink-0 items-center justify-center rounded-full bg-success text-xs font-semibold text-white'
+                                    ? 'bg-success text-white shadow-sm'
                                     : option.isSelected
-                                      ? 'flex size-6 shrink-0 items-center justify-center rounded-full bg-destructive text-xs font-semibold text-white'
-                                      : 'flex size-6 shrink-0 items-center justify-center rounded-full border border-border text-xs font-semibold text-muted-foreground'
-                                }
+                                      ? 'bg-destructive text-white shadow-sm'
+                                      : 'border border-border bg-card text-muted-foreground',
+                                )}
                                 aria-hidden="true"
                               >
                                 {option.label}
@@ -555,21 +569,24 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
                       )}
 
                       {(item.detailedSolution || item.explanation) && (
-                        <div className="mt-4 rounded-lg border border-border bg-muted/20 p-4">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <div className="mt-4 overflow-hidden rounded-xl border border-info/30 bg-info/5">
+                          <p className="flex items-center gap-2 border-b border-info/20 bg-info/10 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-info">
+                            <FileText className="size-3.5" aria-hidden="true" />
                             Solution
                           </p>
+                          <div className="p-4">
                           {item.detailedSolution ? (
                             <div
-                              className="prose-avk mt-2"
+                              className="prose-avk"
                               // Authored by faculty through the admin CMS.
                               dangerouslySetInnerHTML={{ __html: item.detailedSolution }}
                             />
                           ) : (
-                            <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+                            <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">
                               {item.explanation}
                             </p>
                           )}
+                          </div>
                         </div>
                       )}
                     </div>
