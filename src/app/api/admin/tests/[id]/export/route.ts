@@ -31,12 +31,38 @@ function paragraphs(text: string): string {
 }
 
 /**
+ * An <img> for a stored image, or nothing when there is none.
+ *
+ * Paths are made absolute against the site's own origin. A relative `/uploads/..`
+ * resolves against wherever the print window was opened from, which is this
+ * same origin in practice — but the printed page is also saved and re-opened
+ * from disk, and from a `file://` document every relative path is broken.
+ *
+ * `loading="eager"` matters more than it looks: a lazily-loaded image that has
+ * not entered the viewport is not painted when `window.print()` runs, so a long
+ * paper printed with everything below the fold missing.
+ */
+function image(url: string | null | undefined, origin: string, alt: string): string {
+  if (!url) return '';
+
+  const src = /^(https?:|data:)/i.test(url)
+    ? url
+    : `${origin.replace(/\/$/, '')}/${url.replace(/^\//, '')}`;
+
+  return (
+    `<div class="figure">` +
+    `<img src="${escape(src)}" alt="${escape(alt)}" loading="eager" decoding="sync">` +
+    `</div>`
+  );
+}
+
+/**
  * Written as a plain handler rather than through `route()`, which JSON-encodes
  * whatever it is given — this endpoint has to return HTML the browser will
  * render and print.
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   // Caught rather than thrown: outside `route()` there is no error handler, so
@@ -48,6 +74,13 @@ export async function GET(
   }
 
   const { id: testId } = await params;
+
+  // Behind Caddy the request URL is the internal 127.0.0.1:3000 one, so the
+  // forwarded headers are what give the address a printed page can actually
+  // resolve images from.
+  const forwardedHost = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
+  const forwardedProto = request.headers.get('x-forwarded-proto') ?? 'https';
+  const origin = forwardedHost ? `${forwardedProto}://${forwardedHost}` : new URL(request.url).origin;
 
   const test = await db.test.findFirst({
     where: { id: testId, deletedAt: null },
@@ -66,11 +99,12 @@ export async function GET(
             select: {
               code: true,
               body: true,
+              imageUrl: true,
               explanation: true,
               subject: { select: { name: true } },
               options: {
                 orderBy: { sortOrder: 'asc' },
-                select: { label: true, body: true, isCorrect: true },
+                select: { label: true, body: true, imageUrl: true, isCorrect: true },
               },
             },
           },
@@ -95,7 +129,8 @@ export async function GET(
           (option) =>
             `<li class="${option.isCorrect ? 'right' : ''}">` +
             `<b>${escape(option.label)}.</b> ${escape(option.body)}` +
-            `${option.isCorrect ? ' <span class="key">correct</span>' : ''}</li>`,
+            `${option.isCorrect ? ' <span class="key">correct</span>' : ''}` +
+            `${image(option.imageUrl, origin, `Figure for option ${option.label}`)}</li>`,
         )
         .join('');
 
@@ -115,6 +150,7 @@ export async function GET(
             } · ${row.marks} mark${row.marks === 1 ? '' : 's'}</span>
           </header>
           <div class="stem">${paragraphs(q.body)}</div>
+          ${image(q.imageUrl, origin, `Figure for question ${index + 1}`)}
           <ol class="options">${options}</ol>
           ${unkeyed}
           ${
@@ -172,6 +208,14 @@ export async function GET(
   .key { font: 8pt system-ui, sans-serif; color: #047857; font-weight: 700;
          text-transform: uppercase; letter-spacing: .06em; margin-left: 6px; }
   .warn { font: 9pt system-ui, sans-serif; color: #b91c1c; margin: 6px 0 0; }
+  /* Capped in vh as well as width: a tall diagram scaled only by width can
+     run past the bottom of the sheet, and a figure split across two pages is
+     unreadable. break-inside: avoid keeps each one whole. */
+  .figure { margin: 8px 0; break-inside: avoid; page-break-inside: avoid; }
+  .figure img { max-width: 100%; max-height: 42vh; height: auto;
+                object-fit: contain; border: 1px solid #e5e7eb; border-radius: 4px; }
+  .options .figure { margin: 6px 0 2px; }
+  .options .figure img { max-height: 28vh; }
   .explanation { margin-top: 10px; padding: 10px 12px; background: #fef3c7;
                  border-left: 4px solid #d97706; font-size: 11pt; }
   .explanation p { margin: 4px 0 0; }
@@ -184,6 +228,10 @@ export async function GET(
   @media print {
     body { padding: 0; max-width: none; }
     .toolbar { display: none; }
+    /* Chrome drops backgrounds and can wash out images without this, the same
+       reason the answer tints carry it. */
+    .figure img { -webkit-print-color-adjust: exact; print-color-adjust: exact;
+                  max-height: 40vh; }
   }
 </style>
 </head>
@@ -194,10 +242,37 @@ export async function GET(
     ${test.totalMarks} marks · ${test.durationMinutes} minutes · ${escape(test.slug)}
   </p>
   <div class="toolbar">
-    <button type="button" onclick="window.print()">Download PDF</button>
+    <button type="button" onclick="printWhenReady()">Download PDF</button>
     <span>The answer key and explanations are included — this is a staff document.</span>
   </div>
   ${rows || '<p>This paper has no questions yet.</p>'}
+  <script>
+    /*
+     * Printing before the figures have decoded is what leaves gaps in the PDF:
+     * window.print() captures the page as it stands, and an image still in
+     * flight is captured as empty space. So wait for every one to settle first.
+     *
+     * Failures are awaited too, not just successes — one broken URL should cost
+     * the paper that single figure, not the whole print.
+     */
+    async function printWhenReady() {
+      const pending = Array.from(document.images).filter((img) => !img.complete);
+
+      if (pending.length > 0) {
+        await Promise.all(
+          pending.map(
+            (img) =>
+              new Promise((resolve) => {
+                img.addEventListener('load', resolve, { once: true });
+                img.addEventListener('error', resolve, { once: true });
+              }),
+          ),
+        );
+      }
+
+      window.print();
+    }
+  </script>
 </body>
 </html>`;
 
