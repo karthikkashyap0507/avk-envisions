@@ -92,7 +92,10 @@ const TRACK_META: Record<TrackKey, Omit<TrackSummary, 'seriesCount' | 'testCount
     key: 'PAID_SERIES',
     title: 'Paid Test Series',
     blurb: 'Full-length tests with detailed analysis and All India Ranking.',
-    href: '/courses/paid-test-series',
+    // The series itself, not the course-details page: the card's own benefits
+    // already say what the series is, so 'Explore tests' landing on another
+    // description was a step that told the reader nothing new.
+    href: '/test-series/kas-prelims-paid-test-series',
     ctaLabel: 'Explore tests',
     iconName: 'ClipboardList',
     ribbon: 'Most Useful',
