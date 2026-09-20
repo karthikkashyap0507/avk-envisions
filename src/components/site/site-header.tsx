@@ -33,18 +33,18 @@ import { cn } from '@/lib/utils';
 /**
  * The sections, in the order the panel lists them.
  *
- * Labels are the client's own wording — "PyQ's", "KAS-50", "Paid Tests" — so
- * the site reads the way their students hear it described, even where that
- * differs from the page titles.
+ * Labels are the client's own wording — "KAS PYQ Tests", "KAS-50 (Daily tests)",
+ * "KAS Full Length Tests" — so the site reads the way their students hear it
+ * described, even where that differs from the page titles.
  */
 const NAV_LINKS = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/courses', label: 'Courses', icon: BookOpen },
   // Same order as the cards everywhere else.
-  { href: '/pyq', label: "PyQ's", icon: FileText },
+  { href: '/pyq', label: 'KAS PYQ Tests', icon: FileText },
   { href: '/test-series/kas-prelims-free-test-series', label: 'Free Tests', icon: Gift },
-  { href: '/50-days', label: 'KAS-50', icon: Target },
-  { href: '/test-series/kas-prelims-paid-test-series', label: 'Paid Tests', icon: Crown },
+  { href: '/50-days', label: 'KAS-50 (Daily tests)', icon: Target },
+  { href: '/test-series/kas-prelims-paid-test-series', label: 'KAS Full Length Tests', icon: Crown },
   { href: '/chapterwise', label: 'Chapter-wise', icon: Layers },
   { href: '/quiz', label: 'Quiz', icon: HelpCircle },
   { href: '/pricing', label: 'Pricing and Payment Details', icon: Tag },

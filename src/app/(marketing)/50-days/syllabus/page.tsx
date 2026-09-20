@@ -5,7 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { SynopsisViewer } from '@/features/student/synopsis-viewer';
 
 export const metadata: Metadata = {
-  title: 'KAS 50 Days — Syllabus & Schedule',
+  title: 'KAS-50 (Daily tests) — Syllabus & Schedule',
   description:
     'The complete fifty-day timetable: what each day covers, the subject bands and the run-up to the KAS Prelims.',
 };
@@ -33,14 +33,14 @@ export default function FiftyDaysSyllabusPage() {
       </Link>
 
       <h1 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
-        KAS 50 Days — Syllabus &amp; Schedule
+        KAS-50 (Daily tests) — Syllabus &amp; Schedule
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
         The complete fifty-day plan: what each day covers, subject by subject, up to the Prelims.
       </p>
 
       <div className="mt-6">
-        <SynopsisViewer src="/api/schedule/50-days" title="KAS 50 Days schedule" />
+        <SynopsisViewer src="/api/schedule/50-days" title="KAS-50 (Daily tests) schedule" />
       </div>
     </div>
   );

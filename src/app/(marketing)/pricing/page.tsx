@@ -59,7 +59,7 @@ const PLANS: PlanCard[] = [
     // fraction of what it named.
     slug: PYQ_BUNDLE_SLUG,
     number: 1,
-    title: 'KAS Previous Year Question Papers',
+    title: 'KAS PYQ Tests',
     blurb: 'Every exam year — full-length and subject-wise — unlocked by one payment.',
     benefits: ['All years included', 'Detailed solutions'],
     cta: 'Get Now',
@@ -85,7 +85,7 @@ const PLANS: PlanCard[] = [
   {
     slug: 'kas-50-questions-50-days',
     number: 3,
-    title: 'KAS 50 Days 50 Tests (KAS50)',
+    title: 'KAS-50 (Daily tests)',
     blurb: '50 days. 50 tests. One powerful preparation journey.',
     benefits: ['Daily practice', 'Track your progress'],
     cta: 'Start KAS50',

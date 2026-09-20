@@ -44,7 +44,7 @@ import { countEnrolledMany, resolvePricing } from '@/server/services/pricing-ser
 const KAS_50_SHOWN_ENROLMENT = { count: 34, limit: 50 } as const;
 
 export const metadata: Metadata = {
-  title: 'KAS 50 Days · 50 Questions',
+  title: 'KAS-50 (Daily tests)',
   description:
     'A fifty-day KAS Prelims schedule: one paper a day, subject by subject, with answers and a synopsis after each test.',
 };
@@ -112,7 +112,7 @@ export default async function FiftyDaysPage({
       <div className="container py-16">
         <EmptyState
           icon={CalendarDays}
-          title="KAS 50 Days is on its way"
+          title="KAS-50 (Daily tests) is on its way"
           description="The schedule has not opened yet. Check back shortly."
           action={{ label: 'Browse the test series', href: '/test-series' }}
         />
@@ -186,10 +186,10 @@ export default async function FiftyDaysPage({
       <header className="flex flex-wrap items-start justify-between gap-6">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-            KAS 50 Days Test Series
+            KAS-50 (Daily tests)
           </p>
           <h1 className="mt-2 text-3xl font-extrabold uppercase tracking-tight sm:text-4xl">
-            KAS 50 Days · 50 Questions
+            KAS-50 (Daily tests)
           </h1>
 
           <dl className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
@@ -267,7 +267,7 @@ export default async function FiftyDaysPage({
 
           {owned && (
             <p className="w-full rounded-xl border border-success/30 bg-success/10 px-4 py-2.5 text-sm font-medium">
-              You have joined KAS-50.
+              You have joined KAS-50 (Daily tests).
             </p>
           )}
 

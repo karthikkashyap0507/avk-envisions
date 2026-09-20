@@ -21,7 +21,7 @@ import { getTrackSeries, type TrackKey } from '@/server/services/catalogue-servi
 const TRACKS: Record<string, { key: TrackKey; title: string; schedulePdf?: string }> = {
   'paid-test-series': {
     key: 'PAID_SERIES',
-    title: 'KPSC KAS Prelims — Paid Test Series',
+    title: 'KPSC KAS Prelims — KAS Full Length Tests',
     // The published timetable carries the per-test syllabus in full, which the
     // schedule rows do not. Shown alongside them rather than instead: the rows
     // say what is attemptable now, the document says what each test covers.
@@ -29,7 +29,7 @@ const TRACKS: Record<string, { key: TrackKey; title: string; schedulePdf?: strin
   },
   'kas-50': {
     key: 'DAILY_CHALLENGE',
-    title: 'AVK Envisions KAS-50',
+    title: 'KAS-50 (Daily tests)',
     // The fifty-day plan, which is the whole proposition of this series: a
     // student wants to see what falls on which date before joining, and most
     // of those papers are not written yet.

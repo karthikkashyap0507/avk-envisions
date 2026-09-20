@@ -14,7 +14,7 @@ import { getSession } from '@/server/auth/session';
 import { hasEntitlement } from '@/server/services/entitlement-service';
 
 export const metadata: Metadata = {
-  title: 'Previous Year Question Papers',
+  title: 'KAS PYQ Tests',
   description:
     'Solve KAS Prelims previous year papers in the real exam environment — full-length attempts and subject-wise practice, year by year.',
   alternates: { canonical: '/pyq' },

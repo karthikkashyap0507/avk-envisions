@@ -54,7 +54,7 @@ export interface TrackSummary {
 const TRACK_META: Record<TrackKey, Omit<TrackSummary, 'seriesCount' | 'testCount' | 'fromPriceInPaise' | 'isFree'>> = {
   DAILY_CHALLENGE: {
     key: 'DAILY_CHALLENGE',
-    title: 'AVK Envisions KAS-50',
+    title: 'KAS-50 (Daily tests)',
     blurb: '50 Questions × 50 Days — test, analyse, revise, excel.',
     href: '/50-days',
     ctaLabel: 'Join KAS-50',
@@ -90,7 +90,7 @@ const TRACK_META: Record<TrackKey, Omit<TrackSummary, 'seriesCount' | 'testCount
   },
   PAID_SERIES: {
     key: 'PAID_SERIES',
-    title: 'Paid Test Series',
+    title: 'KAS Full Length Tests',
     blurb: 'Full-length tests with detailed analysis and All India Ranking.',
     // The series itself, not the course-details page: the card's own benefits
     // already say what the series is, so 'Explore tests' landing on another
@@ -111,7 +111,7 @@ const TRACK_META: Record<TrackKey, Omit<TrackSummary, 'seriesCount' | 'testCount
   },
   PYQ: {
     key: 'PYQ',
-    title: 'Previous Year Question Papers',
+    title: 'KAS PYQ Tests',
     blurb: 'Experience the real exam environment by solving previous year papers.',
     href: '/pyq',
     ctaLabel: 'Solve PYQs',

@@ -48,7 +48,7 @@ interface Destination {
 export function destinationFor(slug: string, name: string): Destination {
   if (slug === PYQ_BUNDLE_SLUG || slug.startsWith(PYQ_SERIES_PREFIX)) {
     return {
-      name: "PYQ's",
+      name: 'KAS PYQ Tests',
       href: '/pyq',
       blurb: 'Every previous year paper, full-length and subject-wise.',
     };
@@ -56,7 +56,7 @@ export function destinationFor(slug: string, name: string): Destination {
 
   if (slug === DAILY_CHALLENGE_SLUG) {
     return {
-      name: 'KAS-50',
+      name: 'KAS-50 (Daily tests)',
       href: '/50-days',
       blurb: '50 questions a day for 50 days, with the full timetable.',
     };
@@ -64,7 +64,7 @@ export function destinationFor(slug: string, name: string): Destination {
 
   if (slug === 'kas-prelims-paid-test-series') {
     return {
-      name: 'Paid Test Series',
+      name: 'KAS Full Length Tests',
       href: '/test-series/kas-prelims-paid-test-series',
       blurb: 'Full-length mocks in the real prelims pattern.',
     };

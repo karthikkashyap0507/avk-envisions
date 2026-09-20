@@ -40,8 +40,8 @@ const TRACKS: Record<string, { key: TrackKey; title: string; eyebrow: string; bl
   },
   'paid-test-series': {
     key: 'PAID_SERIES',
-    title: 'KPSC KAS Prelims — Paid Test Series',
-    eyebrow: 'Paid Test Series',
+    title: 'KPSC KAS Prelims — KAS Full Length Tests',
+    eyebrow: 'KAS Full Length Tests',
     blurb:
       'Full-length tests in the exact prelims pattern, each followed by All India ranking, percentile and a complete subject-level breakdown.',
   },
@@ -50,14 +50,14 @@ const TRACKS: Record<string, { key: TrackKey; title: string; eyebrow: string; bl
   'previous-year-papers': {
     key: 'PYQ',
     title: 'KPSC KAS Prelims — Previous Year Papers',
-    eyebrow: 'Previous Year Question Papers',
+    eyebrow: 'KAS PYQ Tests',
     blurb:
       'Every paper KPSC has set, with the full analysis for each. The complete 2011 paper is free, so you can see exactly what you get before paying for another year.',
   },
   'kas-50': {
     key: 'DAILY_CHALLENGE',
-    title: 'AVK Envisions KAS-50',
-    eyebrow: 'KAS 50 Questions × 50 Days',
+    title: 'KAS-50 (Daily tests)',
+    eyebrow: 'KAS-50 (Daily tests)',
     blurb:
       'One fifty-question paper a day for fifty days, with answers and explanations the moment you finish and your streak tracked throughout.',
   },

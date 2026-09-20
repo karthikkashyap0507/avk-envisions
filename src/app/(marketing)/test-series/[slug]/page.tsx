@@ -110,7 +110,7 @@ export default async function TestSeriesDetailPage({
       <FreeSeriesSchedule
         name={series.name}
         tagline={series.tagline}
-        eyebrow={series.priceInPaise > 0 ? 'Paid Test Series' : 'Free Test Series'}
+        eyebrow={series.priceInPaise > 0 ? 'KAS Full Length Tests' : 'Free Test Series'}
         plannedQuestions={PLANNED_QUESTIONS[slug]}
         scheduleHref={SCHEDULE_PAGES[slug]}
         // Only while an early rung is genuinely open. Past that the price on
