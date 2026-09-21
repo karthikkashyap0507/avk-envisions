@@ -57,16 +57,14 @@ async function main() {
     return;
   }
 
-  // Matched case-insensitively, because the address you are given is rarely
-  // typed the way the student typed it at sign-up. Prisma's `mode:
-  // 'insensitive'` is a PostgreSQL feature and does nothing on SQLite, so the
-  // comparison is done in JS over the candidates instead.
-  const wanted = email.trim().toLowerCase();
-  const candidates = await db.user.findMany({
-    where: { deletedAt: null },
-    select: { id: true, name: true, email: true, status: true, role: true },
+  // Looked up on `emailNormal`, the lowercased copy the schema keeps for
+  // exactly this: Prisma's `mode: 'insensitive'` is a PostgreSQL feature and
+  // silently does nothing on SQLite, so an address typed with different case
+  // would otherwise read as "no such account".
+  const user = await db.user.findFirst({
+    where: { emailNormal: email.trim().toLowerCase(), deletedAt: null },
+    select: { id: true, name: true, email: true, status: true, role: true, passwordHash: true },
   });
-  const user = candidates.find((row) => row.email.trim().toLowerCase() === wanted);
 
   if (!user) {
     console.error(`No account found for ${email}.`);
@@ -83,6 +81,17 @@ async function main() {
   if (user.status !== 'ACTIVE') {
     console.warn(`\n  WARNING: this account is ${user.status}, not ACTIVE.`);
     console.warn('  Access will be granted, but they cannot sign in until it is reactivated.');
+  }
+
+  // Granting access to an account nobody can sign into looks like a fix and is
+  // not one. A guest account minted by the free-test flow has no usable
+  // password, and its @guest.invalid address cannot receive a reset link — so
+  // the entitlement would be real and still out of reach.
+  if (!user.passwordHash || user.email.endsWith('@guest.invalid')) {
+    console.warn('\n  WARNING: this account probably cannot be signed into.');
+    console.warn('  It has no password set, or its address is an undeliverable guest one.');
+    console.warn('  The grant below will be real, but the student may still not reach it.');
+    console.warn('  Run: npx tsx scripts/find-student.mts <their phone> to find their other account.');
   }
 
   console.log('\nBefore:');
