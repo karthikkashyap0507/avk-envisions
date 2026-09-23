@@ -1,5 +1,30 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { requireAdmin } from '@/server/auth/guards';
 import { db } from '@/server/db';
+
+/**
+ * The AVK Envisions mark, inlined as a data URI.
+ *
+ * Inlined rather than linked: it is on the page the moment it opens, so the
+ * print dialogue can never capture the header before the logo has loaded, and
+ * a PDF saved to disk and reopened still carries it. Read once and kept.
+ *
+ * A missing file costs the header its logo, not the export — this route is
+ * how staff proof a paper, and a branding asset must never be why it fails.
+ */
+let logoDataUri: string | null | undefined;
+function logo(): string | null {
+  if (logoDataUri !== undefined) return logoDataUri;
+  try {
+    const file = path.join(process.cwd(), 'public', 'brand', 'avk-logo-print.jpg');
+    logoDataUri = `data:image/jpeg;base64,${readFileSync(file).toString('base64')}`;
+  } catch {
+    logoDataUri = null;
+  }
+  return logoDataUri;
+}
 
 /**
  * GET /api/admin/tests/[id]/export — one paper as a printable document.
@@ -101,7 +126,9 @@ export async function GET(
               body: true,
               imageUrl: true,
               explanation: true,
-              subject: { select: { name: true } },
+              // No subject. Imports filed whole papers under one subject, so the
+              // label printed "Indian Polity" above ancient-history questions.
+              // A proof copy is better with no label than a wrong one.
               options: {
                 orderBy: { sortOrder: 'asc' },
                 select: { label: true, body: true, imageUrl: true, isCorrect: true },
@@ -145,9 +172,7 @@ export async function GET(
         <article>
           <header>
             <span class="num">${index + 1}</span>
-            <span class="meta">${escape(q.code ?? '')}${
-              q.subject ? ` · ${escape(q.subject.name)}` : ''
-            } · ${row.marks} mark${row.marks === 1 ? '' : 's'}</span>
+            <span class="meta">${escape(q.code ?? '')} · ${row.marks} mark${row.marks === 1 ? '' : 's'}</span>
           </header>
           <div class="stem">${paragraphs(q.body)}</div>
           ${image(q.imageUrl, origin, `Figure for question ${index + 1}`)}
@@ -175,8 +200,19 @@ export async function GET(
     font: 12pt/1.5 Georgia, 'Times New Roman', serif; color: #111;
     max-width: 60rem;
   }
+  /* The letterhead: mark on the left, the paper's title beside it, and a
+     gold rule taken from the logo underneath. Sized in mm so it prints the
+     same on A4 and Letter whatever the screen it was opened on. */
+  .letterhead { display: flex; align-items: center; gap: 16px;
+                padding-bottom: 12px; margin-bottom: 18px;
+                border-bottom: 2px solid #c9a24a; }
+  .letterhead img { height: 22mm; width: auto; flex-shrink: 0;
+                    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .letterhead .titles { min-width: 0; flex: 1; }
+  .letterhead .brand { font: 600 8.5pt system-ui, sans-serif; letter-spacing: .14em;
+                       text-transform: uppercase; color: #1e3a5f; margin: 0 0 3px; }
   h1 { font-size: 18pt; margin: 0 0 2px; }
-  .sub { color: #555; font-size: 10pt; margin: 0 0 20px; }
+  .sub { color: #555; font-size: 10pt; margin: 0; }
   /* A button, not an instruction to press Ctrl+P.
      There is no Ctrl+P on a phone, so the only way to save this was from a
      desktop. The browser's own print dialogue is what produces the PDF —
@@ -192,6 +228,8 @@ export async function GET(
   .toolbar button:hover { background: #3730a3; }
   .toolbar span { flex: 1 1 14rem; min-width: 0; }
   article { border-top: 1px solid #ddd; padding: 14px 0; break-inside: avoid; }
+  /* The letterhead's gold rule already divides it from the first question. */
+  .letterhead + .toolbar + article, .letterhead + article { border-top: 0; padding-top: 4px; }
   article header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
   .num { font-weight: 700; font-size: 13pt; }
   .meta { font: 9pt system-ui, sans-serif; color: #6b7280; }
@@ -236,11 +274,17 @@ export async function GET(
 </style>
 </head>
 <body>
-  <h1>${escape(test.title)}</h1>
-  <p class="sub">
-    ${test.totalQuestions} question${test.totalQuestions === 1 ? '' : 's'} ·
-    ${test.totalMarks} marks · ${test.durationMinutes} minutes · ${escape(test.slug)}
-  </p>
+  <header class="letterhead">
+    ${logo() ? `<img src="${logo()}" alt="AVK Envisions">` : ''}
+    <div class="titles">
+      <p class="brand">AVK Envisions · KAS Prelims</p>
+      <h1>${escape(test.title)}</h1>
+      <p class="sub">
+        ${test.totalQuestions} question${test.totalQuestions === 1 ? '' : 's'} ·
+        ${test.totalMarks} marks · ${test.durationMinutes} minutes · ${escape(test.slug)}
+      </p>
+    </div>
+  </header>
   <div class="toolbar">
     <button type="button" onclick="printWhenReady()">Download PDF</button>
     <span>The answer key and explanations are included — this is a staff document.</span>
