@@ -23,7 +23,7 @@ const db = new PrismaClient();
 const DRY_RUN = process.argv.includes('--dry-run');
 
 /** What the bundle costs: the same early-bird ladder each year carried. */
-const TIER1_PAISE = 4900;
+const TIER1_PAISE = 9900;
 const TIER1_LIMIT = 50;
 const TIER2_PAISE = 19900;
 

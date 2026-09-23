@@ -41,17 +41,22 @@ const PLANS: Plan[] = [
   // made after sitting one rather than before.
   { slug: 'kas-pyq-2011', price: 0, earlyBird: null, earlyBirdLimit: null, free: true },
 
-  // The previous-year bundle — ₹49 for the first 50, then ₹199. This is what
+  // The previous-year bundle — ₹99 for the first 50, then ₹199. This is what
   // is actually sold; the per-year rows below only matter if a year is ever
   // offered on its own again, and they are kept in step so it could be.
-  { slug: 'kas-pyq-all-years', price: 199, earlyBird: 49, earlyBirdLimit: 50 },
+  { slug: 'kas-pyq-all-years', price: 199, earlyBird: 99, earlyBirdLimit: 50 },
 
-  // PYQ — ₹49 for the first 50, then ₹199. Priced per year.
-  { slug: 'kas-pyq-2015', price: 199, earlyBird: 49, earlyBirdLimit: 50 },
-  { slug: 'kas-pyq-2017', price: 199, earlyBird: 49, earlyBirdLimit: 50 },
-  { slug: 'kas-pyq-2020', price: 199, earlyBird: 49, earlyBirdLimit: 50 },
-  { slug: 'kas-pyq-2024-august', price: 199, earlyBird: 49, earlyBirdLimit: 50 },
-  { slug: 'kas-pyq-2024-december', price: 199, earlyBird: 49, earlyBirdLimit: 50 },
+  // PYQ — ₹99 for the first 50, then ₹199. Priced per year.
+  { slug: 'kas-pyq-2015', price: 199, earlyBird: 99, earlyBirdLimit: 50 },
+  { slug: 'kas-pyq-2017', price: 199, earlyBird: 99, earlyBirdLimit: 50 },
+  { slug: 'kas-pyq-2020', price: 199, earlyBird: 99, earlyBirdLimit: 50 },
+  { slug: 'kas-pyq-2024-august', price: 199, earlyBird: 99, earlyBirdLimit: 50 },
+  { slug: 'kas-pyq-2024-december', price: 199, earlyBird: 99, earlyBirdLimit: 50 },
+
+  // KAS Complete Practice Combo — PYQ, KAS-50 and the full-length series in
+  // one purchase, at a flat ₹249. No early-bird ladder: the saving it shows is
+  // against buying the three separately, computed from their live prices.
+  { slug: 'kas-complete-practice-combo', price: 249, earlyBird: null, earlyBirdLimit: null },
 
   // KAS50 — ₹99 for the first 50, then ₹299.
   { slug: 'kas-50-questions-50-days', price: 299, earlyBird: 99, earlyBirdLimit: 50 },
@@ -85,7 +90,9 @@ async function main() {
     const access = plan.free ? 'FREE' : 'PAID';
     const label = plan.free
       ? 'free'
-      : `₹${plan.earlyBird} for the first ${plan.earlyBirdLimit}, then ₹${plan.price}`;
+      : plan.earlyBird === null
+        ? `₹${plan.price}`
+        : `₹${plan.earlyBird} for the first ${plan.earlyBirdLimit}, then ₹${plan.price}`;
 
     console.log(
       `  ${DRY_RUN ? '   ' : 'ok '} ${plan.slug.padEnd(30)} ${label.padEnd(38)} ${series.tests.length} test(s) → ${access}`,
