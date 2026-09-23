@@ -588,6 +588,19 @@ export const DAILY_CHALLENGE_SLUG = 'kas-50-questions-50-days';
 export const PYQ_BUNDLE_SLUG = 'kas-pyq-all-years';
 export const PYQ_SERIES_PREFIX = 'kas-pyq-';
 
+/** The full-length mock series, sold as "KAS Full Length Tests". */
+export const PAID_SERIES_SLUG = 'kas-prelims-paid-test-series';
+
+/**
+ * KAS Complete Practice Combo — one purchase, three courses.
+ *
+ * Like the previous-year bundle it holds no tests of its own: holding it is
+ * what entitles the series below, through `grantingSeriesIds`. Every year the
+ * PYQ bundle covers is covered too, since the bundle is one of them.
+ */
+export const COMBO_SLUG = 'kas-complete-practice-combo';
+export const COMBO_INCLUDES = [PYQ_BUNDLE_SLUG, DAILY_CHALLENGE_SLUG, PAID_SERIES_SLUG] as const;
+
 /** Slug prefix for its per-day papers. */
 export const DAILY_CHALLENGE_TEST_PREFIX = 'kas-50-days-';
 

@@ -1,4 +1,4 @@
-import { PYQ_BUNDLE_SLUG } from '@/lib/enums';
+import { COMBO_INCLUDES, PYQ_BUNDLE_SLUG } from '@/lib/enums';
 import 'server-only';
 
 import { cache } from 'react';
@@ -25,6 +25,7 @@ export type TrackKey =
   | 'FREE_SERIES'
   | 'PAID_SERIES'
   | 'PYQ'
+  | 'COMBO'
   | 'CHAPTERWISE'
   | 'DAILY_CHALLENGE';
 
@@ -48,6 +49,12 @@ export interface TrackSummary {
   fromPriceInPaise: number;
   earlyBirdLimit?: number | null;
   isFree: boolean;
+  /**
+   * COMBO only: what the series it includes cost bought separately, at their
+   * live prices. The saving the card shows is the difference, so it is true
+   * whichever early-bird rungs are open when someone reads it.
+   */
+  separatelyInPaise?: number | null;
 }
 
 /** Static presentation for each track; counts are filled from the database. */
@@ -109,6 +116,22 @@ const TRACK_META: Record<TrackKey, Omit<TrackSummary, 'seriesCount' | 'testCount
       'Complete analysis PDF for every test',
     ],
   },
+  COMBO: {
+    key: 'COMBO',
+    title: 'KAS Complete Practice Combo',
+    blurb: 'KAS PYQ Tests + KAS-50 (Daily tests) + KAS Full Length Tests — everything in one purchase.',
+    href: '/combo',
+    ctaLabel: 'Get Complete Combo',
+    iconName: 'Gift',
+    ribbon: 'Best Value',
+    comingSoon: false,
+    benefits: [
+      'Every previous year paper — KAS PYQ Tests',
+      '50 questions × 50 days — KAS-50 (Daily tests)',
+      'Full-length mocks — KAS Full Length Tests',
+      'Detailed analysis and performance tracking',
+    ],
+  },
   PYQ: {
     key: 'PYQ',
     title: 'KAS PYQ Tests',
@@ -154,6 +177,9 @@ const TRACK_META: Record<TrackKey, Omit<TrackSummary, 'seriesCount' | 'testCount
 const TRACK_ORDER: TrackKey[] = [
   'PYQ',
   'FREE_SERIES',
+  // After the two entry points and before the three it contains, so a reader
+  // meets the bundle before pricing its parts one by one.
+  'COMBO',
   'DAILY_CHALLENGE',
   'PAID_SERIES',
   'CHAPTERWISE',
@@ -165,6 +191,7 @@ export const getCourseTracks = cache(async (): Promise<TrackSummary[]> => {
     where: { status: 'PUBLISHED', deletedAt: null },
     select: {
       id: true,
+      slug: true,
       track: true,
       priceInPaise: true,
       tier1PriceInPaise: true,
@@ -179,6 +206,12 @@ export const getCourseTracks = cache(async (): Promise<TrackSummary[]> => {
   });
 
   const enrolments = await countEnrolledMany(series.map((s) => s.id));
+
+  const livePrice = (slug: string) => {
+    const row = series.find((s) => s.slug === slug);
+    return row ? resolvePricing(row, enrolments.get(row.id) ?? 0).priceInPaise : 0;
+  };
+  const separately = COMBO_INCLUDES.reduce((sum, slug) => sum + livePrice(slug), 0);
 
   return TRACK_ORDER.map((key) => {
     const mine = series.filter((s) => s.track === key);
@@ -201,8 +234,13 @@ export const getCourseTracks = cache(async (): Promise<TrackSummary[]> => {
       /** Set when an early-bird tier is running, for the "only for the first N" line. */
       earlyBirdLimit: cheapest?.activeTier ? cheapest.tierLimit : null,
       isFree: key === 'FREE_SERIES',
+      separatelyInPaise: key === 'COMBO' ? separately : null,
     };
-  });
+  })
+    // The combo is a single series with no papers. Until that row exists its
+    // card would read as a free product, so it is left out rather than shown
+    // at ₹0.
+    .filter((track) => track.key !== 'COMBO' || track.fromPriceInPaise > 0);
 });
 
 // ---------------------------------------------------------------------------

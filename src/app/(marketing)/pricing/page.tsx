@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, Clock, Flame, Target, TrendingUp, Trophy } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Clock, Flame, Gift, Target, TrendingUp, Trophy } from 'lucide-react';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { BuyButton } from '@/features/checkout/buy-button';
 import { cn, formatPaise } from '@/lib/utils';
-import { PYQ_BUNDLE_SLUG } from '@/lib/enums';
+import { COMBO_INCLUDES, COMBO_SLUG, PYQ_BUNDLE_SLUG } from '@/lib/enums';
 import { db } from '@/server/db';
 import { countEnrolledMany, resolvePricing } from '@/server/services/pricing-service';
 
@@ -27,10 +27,11 @@ export const dynamic = 'force-dynamic';
  */
 interface PlanCard {
   slug: string | null;
-  number: number;
   title: string;
+  /** A second line under the title, for a plan made of other plans. */
+  subtitle?: string;
   blurb: string;
-  benefits: [string, string];
+  benefits: string[];
   cta: string;
   href: string;
   /** Tailwind classes, kept whole so the compiler can see them. */
@@ -58,7 +59,6 @@ const PLANS: PlanCard[] = [
     // wiring it to a single year charged the advertised price and delivered a
     // fraction of what it named.
     slug: PYQ_BUNDLE_SLUG,
-    number: 1,
     title: 'KAS PYQ Tests',
     blurb: 'Every exam year — full-length and subject-wise — unlocked by one payment.',
     benefits: ['All years included', 'Detailed solutions'],
@@ -71,7 +71,6 @@ const PLANS: PlanCard[] = [
   },
   {
     slug: 'kas-prelims-free-test-series',
-    number: 2,
     title: 'Free Test Series',
     blurb: 'Try our free tests and evaluate your preparation level.',
     benefits: ['Exam-style practice', 'Detailed solutions'],
@@ -83,8 +82,29 @@ const PLANS: PlanCard[] = [
     ribbon: 'bg-emerald-600',
   },
   {
+    // Three plans in one purchase. Flat ₹249 — no early-bird rung — so the card
+    // makes no first-fifty claim; its saving is against the three bought
+    // separately at their live prices.
+    slug: COMBO_SLUG,
+    title: 'KAS Complete Practice Combo',
+    subtitle: 'KAS PYQ Tests + KAS-50 + KAS Full Length Tests',
+    blurb: 'Everything you need for KAS Prelims practice in one pack.',
+    benefits: [
+      'Complete KAS PYQ collection',
+      'Full-length mock tests',
+      '50 questions × 50 days (KAS-50)',
+      'Detailed analysis & performance tracking',
+    ],
+    cta: 'Get Complete Combo',
+    href: '/combo',
+    tint: 'border-2 border-rose-300 bg-gradient-to-br from-rose-50 to-amber-50/60 dark:border-rose-800/60 dark:from-rose-950/30 dark:to-amber-950/10',
+    accent: 'bg-rose-600 text-white',
+    button: 'bg-rose-600 hover:bg-rose-700 text-white',
+    ribbon: 'bg-amber-400',
+    badge: 'Best Value',
+  },
+  {
     slug: 'kas-50-questions-50-days',
-    number: 3,
     title: 'KAS-50 (Daily tests)',
     blurb: '50 days. 50 tests. One powerful preparation journey.',
     benefits: ['Daily practice', 'Track your progress'],
@@ -98,8 +118,7 @@ const PLANS: PlanCard[] = [
   },
   {
     slug: 'kas-prelims-paid-test-series',
-    number: 4,
-    title: 'Test Series (Full-Length Mock Tests)',
+    title: 'KAS Full Length Tests',
     blurb: 'Full-length tests in the exact prelims pattern with detailed analysis.',
     benefits: ['All India ranking', 'Performance analysis'],
     cta: 'Enrol Now',
@@ -114,7 +133,6 @@ const PLANS: PlanCard[] = [
     // so: quoting one subject's price under a title that names the whole
     // track is what made students think ₹49 covered all of them.
     slug: 'chapterwise-polity',
-    number: 5,
     title: 'Chapter-wise Practice',
     blurb: 'Strengthen every chapter, step by step. Priced per subject.',
     benefits: ['Topic-wise tests', 'Concept clarity'],
@@ -165,6 +183,15 @@ export default async function PricingPage() {
   const enrolled = await countEnrolledMany(series.map((s) => s.id));
   const bySlug = new Map(series.map((s) => [s.slug, s]));
 
+  // What the combo's three plans cost bought one by one, today.
+  const separately = COMBO_INCLUDES.reduce((sum, slug) => {
+    const row = bySlug.get(slug);
+    return row ? sum + resolvePricing(row, enrolled.get(row.id) ?? 0).priceInPaise : sum;
+  }, 0);
+
+  // The combo row is left out until it exists, rather than shown as Coming Soon.
+  const plans = PLANS.filter((plan) => plan.slug !== COMBO_SLUG || bySlug.has(COMBO_SLUG));
+
   return (
     <div className="bg-gradient-to-b from-sky-50/60 to-transparent dark:from-sky-950/10">
       <div className="container max-w-4xl py-10 sm:py-14">
@@ -194,7 +221,7 @@ export default async function PricingPage() {
         </header>
 
         <ul className="mt-8 space-y-4">
-          {PLANS.map((plan) => {
+          {plans.map((plan, index) => {
             const row = plan.slug ? bySlug.get(plan.slug) : undefined;
             const pricing = row
               ? resolvePricing(row, enrolled.get(row.id) ?? 0)
@@ -213,7 +240,7 @@ export default async function PricingPage() {
             const standard = pricing?.ladder.find((rung) => rung.limit === null) ?? null;
 
             return (
-              <li key={plan.number}>
+              <li key={plan.title}>
                 <Card className={cn('overflow-hidden', plan.tint)}>
                   <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-5">
                     <span
@@ -223,7 +250,8 @@ export default async function PricingPage() {
                       )}
                       aria-hidden="true"
                     >
-                      {plan.number}
+                      {/* By position, so adding a plan never duplicates a number. */}
+                      {index + 1}
                     </span>
 
                     <div className="min-w-0 flex-1">
@@ -232,15 +260,36 @@ export default async function PricingPage() {
                           {plan.title}
                         </h2>
                         {plan.badge && available && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-rose-500 px-2 py-0.5 text-[0.7rem] font-semibold text-white">
-                            <Flame className="size-3" aria-hidden="true" />
+                          <span
+                            className={cn(
+                              'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.7rem] font-semibold',
+                              plan.slug === COMBO_SLUG
+                                ? 'bg-amber-400 text-amber-950'
+                                : 'bg-rose-500 text-white',
+                            )}
+                          >
+                            {plan.slug === COMBO_SLUG ? (
+                              <Gift className="size-3" aria-hidden="true" />
+                            ) : (
+                              <Flame className="size-3" aria-hidden="true" />
+                            )}
                             {plan.badge}
                           </span>
                         )}
                       </div>
+                      {plan.subtitle && (
+                        <p className="mt-0.5 text-sm font-semibold text-rose-700 dark:text-rose-300">
+                          {plan.subtitle}
+                        </p>
+                      )}
                       <p className="mt-1 text-sm text-muted-foreground">{plan.blurb}</p>
 
-                      <ul className="mt-2.5 flex flex-wrap gap-x-6 gap-y-1.5">
+                      <ul
+                        className={cn(
+                          'mt-2.5 gap-x-6 gap-y-1.5',
+                          plan.benefits.length > 2 ? 'grid sm:grid-cols-2' : 'flex flex-wrap',
+                        )}
+                      >
                         {plan.benefits.map((benefit) => (
                           <li key={benefit} className="flex items-center gap-1.5 text-sm">
                             <CheckCircle2
@@ -280,8 +329,24 @@ export default async function PricingPage() {
                             </p>
                           )}
 
+                          {plan.slug === COMBO_SLUG && pricing && separately > pricing.priceInPaise && (
+                            <p className="flex items-center justify-center gap-2 bg-rose-50 px-3 py-1.5 text-center text-xs dark:bg-rose-950/30">
+                              <span className="text-muted-foreground line-through tabular-nums">
+                                {formatPaise(separately)}
+                              </span>
+                              <span className="rounded-full bg-success/15 px-2 py-0.5 font-bold text-success tabular-nums">
+                                Save {formatPaise(separately - pricing.priceInPaise)}
+                              </span>
+                            </p>
+                          )}
+
                           <div className="flex items-stretch">
-                            <p className="flex-1 px-3 py-2.5 text-center text-2xl font-bold tabular-nums">
+                            <p
+                              className={cn(
+                                'flex-1 px-3 py-2.5 text-center text-2xl font-bold tabular-nums',
+                                plan.slug === COMBO_SLUG && 'text-3xl text-rose-600 dark:text-rose-400',
+                              )}
+                            >
                               {isFree ? '₹0' : formatPaise(pricing!.priceInPaise)}
                               {plan.priceNote && (
                                 <span className="block text-[0.7rem] font-medium leading-tight text-muted-foreground">

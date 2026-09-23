@@ -19,6 +19,7 @@ const ICONS: Record<string, LucideIcon> = {
   ClipboardCheck,
   ClipboardList,
   FileQuestion,
+  Gift,
   Layers,
 };
 
@@ -32,6 +33,8 @@ const ICONS: Record<string, LucideIcon> = {
 interface Skin {
   /** `/courses/<slug>` — the details page for this track. */
   detailsSlug: string;
+  /** Overrides the details link for a track with no `/courses` page. */
+  detailsHref?: string;
   wash: string;
   button: string;
   chip: string;
@@ -43,6 +46,14 @@ const SKINS: Record<TrackKey, Skin> = {
     wash: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300',
     button: 'bg-emerald-600 hover:bg-emerald-700 text-white',
     chip: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+  },
+  COMBO: {
+    detailsSlug: 'combo',
+    // The combo has its own page, which is its details page.
+    detailsHref: '/combo',
+    wash: 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300',
+    button: 'bg-rose-600 hover:bg-rose-700 text-white',
+    chip: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
   },
   PYQ: {
     detailsSlug: 'previous-year-papers',
@@ -146,7 +157,7 @@ export function CourseTracks({ tracks }: { tracks: TrackSummary[] }) {
 
               <div className="mt-auto flex gap-2.5 pt-4">
                 <Link
-                  href={`/courses/${skin.detailsSlug}`}
+                  href={skin.detailsHref ?? `/courses/${skin.detailsSlug}`}
                   className="inline-flex flex-1 items-center justify-center rounded-lg border border-border px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   View details

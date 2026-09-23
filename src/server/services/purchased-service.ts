@@ -1,4 +1,6 @@
 import {
+  COMBO_INCLUDES,
+  COMBO_SLUG,
   DAILY_CHALLENGE_SLUG,
   PYQ_BUNDLE_SLUG,
   PYQ_SERIES_PREFIX,
@@ -46,6 +48,14 @@ interface Destination {
  * still lands somewhere sensible rather than nowhere.
  */
 export function destinationFor(slug: string, name: string): Destination {
+  if (slug === COMBO_SLUG) {
+    return {
+      name: 'KAS Complete Practice Combo',
+      href: '/combo',
+      blurb: 'KAS PYQ Tests, KAS-50 (Daily tests) and KAS Full Length Tests in one purchase.',
+    };
+  }
+
   if (slug === PYQ_BUNDLE_SLUG || slug.startsWith(PYQ_SERIES_PREFIX)) {
     return {
       name: 'KAS PYQ Tests',
@@ -124,17 +134,27 @@ export async function getPurchasedCourses(userId: string): Promise<PurchasedCour
     const series = row.testSeries;
     if (!series) continue;
 
-    const destination = destinationFor(series.slug, series.name);
-    if (seen.has(destination.href)) continue;
-    seen.add(destination.href);
+    // The combo has nothing to study on its own page; what the student bought
+    // is the three courses inside it, so that is what is listed — each linking
+    // straight to where it is studied, exactly as if bought separately.
+    const slugs = series.slug === COMBO_SLUG ? [...COMBO_INCLUDES] : [series.slug];
 
-    courses.push({
-      id: series.id,
-      name: destination.name,
-      href: destination.href,
-      blurb: destination.blurb,
-      purchasedAt: row.createdAt,
-    });
+    for (const slug of slugs) {
+      const destination = destinationFor(slug, series.name);
+      if (seen.has(destination.href)) continue;
+      seen.add(destination.href);
+
+      courses.push({
+        id: series.slug === COMBO_SLUG ? `${series.id}:${slug}` : series.id,
+        name: destination.name,
+        href: destination.href,
+        blurb:
+          series.slug === COMBO_SLUG
+            ? `${destination.blurb} Included in your Complete Practice Combo.`
+            : destination.blurb,
+        purchasedAt: row.createdAt,
+      });
+    }
   }
 
   return courses;
@@ -212,8 +232,19 @@ export async function getAvailableCourses(userId: string): Promise<AvailableCour
   const enrolled = await countEnrolledMany(sellable.map((s) => s.id));
   const courses: AvailableCourse[] = [];
 
+  // Whether the student already holds every part of the combo, bought one by
+  // one. Then the combo would sell them nothing, so it is not offered.
+  const comboParts = await db.testSeries.findMany({
+    where: { slug: { in: [...COMBO_INCLUDES] }, deletedAt: null },
+    select: { id: true },
+  });
+  const ownsEveryPart =
+    comboParts.length === COMBO_INCLUDES.length &&
+    (await Promise.all(comboParts.map((part) => hasEntitlement(userId, part.id)))).every(Boolean);
+
   for (const series of sellable) {
     if (await hasEntitlement(userId, series.id)) continue;
+    if (series.slug === COMBO_SLUG && ownsEveryPart) continue;
 
     const pricing = resolvePricing(series, enrolled.get(series.id) ?? 0);
     const destination = destinationFor(series.slug, series.name);

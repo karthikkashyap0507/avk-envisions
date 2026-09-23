@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Clock,
   Flame,
+  Gift,
   Lightbulb,
   Star,
   Target,
@@ -14,7 +15,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 
-import { cn } from '@/lib/utils';
+import { cn, formatPaise } from '@/lib/utils';
 import { db } from '@/server/db';
 import { getCourseTracks, type TrackKey } from '@/server/services/catalogue-service';
 
@@ -37,7 +38,6 @@ export const dynamic = 'force-dynamic';
  */
 interface CardSpec {
   key: TrackKey;
-  number: number;
   icon: typeof BookOpen;
   title: string;
   tagline: string;
@@ -53,7 +53,6 @@ interface CardSpec {
 const CARDS: CardSpec[] = [
   {
     key: 'PYQ',
-    number: 1,
     icon: BookOpen,
     title: 'Previous Year Questions (PYQs)',
     tagline: 'Real KAS questions. Know the exam trend.',
@@ -67,7 +66,6 @@ const CARDS: CardSpec[] = [
   },
   {
     key: 'FREE_SERIES',
-    number: 2,
     icon: CheckCircle2,
     title: 'Free Test Series',
     tagline: 'Test Yourself Before the Real Exam Tests You.',
@@ -80,8 +78,25 @@ const CARDS: CardSpec[] = [
     chip: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
   },
   {
+    key: 'COMBO',
+    icon: Gift,
+    title: 'KAS Complete Practice Combo',
+    tagline: 'KAS PYQ Tests + KAS-50 (Daily tests) + KAS Full Length Tests — everything in one pack.',
+    benefits: [
+      'Complete KAS PYQ collection',
+      '50 questions × 50 days (KAS-50)',
+      'Full-length mock tests',
+      'Detailed analysis & performance tracking',
+    ],
+    cta: 'Get Complete Combo',
+    tint: 'border-2 border-rose-300 bg-gradient-to-br from-rose-50 to-amber-50/60 dark:border-rose-800/60 dark:from-rose-950/30 dark:to-amber-950/10',
+    accent: 'bg-rose-600 text-white',
+    iconWash: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+    button: 'bg-rose-600 hover:bg-rose-700 text-white',
+    chip: 'bg-amber-400 text-amber-950',
+  },
+  {
     key: 'DAILY_CHALLENGE',
-    number: 3,
     icon: CalendarDays,
     title: 'KAS-50 (Daily tests)',
     tagline: '50 Days. 50 Tests. One Powerful Preparation Journey.',
@@ -95,7 +110,6 @@ const CARDS: CardSpec[] = [
   },
   {
     key: 'PAID_SERIES',
-    number: 4,
     icon: Trophy,
     title: 'KAS Full Length Tests',
     tagline: '100 Questions. Real Exam Pattern.',
@@ -109,7 +123,6 @@ const CARDS: CardSpec[] = [
   },
   {
     key: 'CHAPTERWISE',
-    number: 5,
     icon: BookOpen,
     title: 'Chapter-wise Practice',
     tagline: 'Strengthen every chapter, step by step.',
@@ -182,9 +195,10 @@ export default async function TestSeriesPage() {
         </header>
 
         <ul className="mt-8 space-y-4">
-          {CARDS.map((card) => {
-            const track = byKey.get(card.key);
-            if (!track) return null;
+          {/* Numbered by position among the rows actually shown, so inserting
+              or hiding a track can never leave two rows sharing a number. */}
+          {CARDS.filter((card) => byKey.has(card.key)).map((card, index) => {
+            const track = byKey.get(card.key)!;
 
             const Icon = card.icon;
             // "Coming soon" is decided by the catalogue, not by this file: a
@@ -204,7 +218,7 @@ export default async function TestSeriesPage() {
                         )}
                         aria-hidden="true"
                       >
-                        {card.number}
+                        {index + 1}
                       </span>
                       <span
                         className={cn(
@@ -271,7 +285,15 @@ export default async function TestSeriesPage() {
                     </div>
 
                     <div className="shrink-0">
-                      {soon ? (
+                      {card.key === 'COMBO' ? (
+                        <ComboPrice
+                          priceInPaise={track.fromPriceInPaise}
+                          separatelyInPaise={track.separatelyInPaise ?? 0}
+                          href={track.href}
+                          cta={card.cta}
+                          button={card.button}
+                        />
+                      ) : soon ? (
                         <span className="inline-flex items-center justify-center gap-1.5 rounded-full bg-muted px-5 py-2.5 text-sm font-semibold text-muted-foreground">
                           <Clock className="size-4" aria-hidden="true" />
                           Coming Soon
@@ -301,6 +323,58 @@ export default async function TestSeriesPage() {
           Consistent practice builds big results.
         </p>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The combo's price box. The struck-through figure is the three series bought
+ * separately at their live prices, so "Save" is true on the day it is read.
+ */
+function ComboPrice({
+  priceInPaise,
+  separatelyInPaise,
+  href,
+  cta,
+  button,
+}: {
+  priceInPaise: number;
+  separatelyInPaise: number;
+  href: string;
+  cta: string;
+  button: string;
+}) {
+  const saving = separatelyInPaise - priceInPaise;
+
+  return (
+    <div className="w-full rounded-2xl border border-rose-200 bg-card p-4 text-center shadow-sm sm:w-52 dark:border-rose-900/50">
+      <span className="inline-block rounded-full bg-amber-400 px-2.5 py-0.5 text-[0.7rem] font-bold uppercase tracking-wide text-amber-950">
+        Best Value
+      </span>
+      {saving > 0 && (
+        <p className="mt-2 text-sm text-muted-foreground line-through tabular-nums">
+          {formatPaise(separatelyInPaise)}
+        </p>
+      )}
+      <p className="text-3xl font-extrabold tracking-tight text-rose-600 tabular-nums dark:text-rose-400">
+        {formatPaise(priceInPaise)}
+      </p>
+      {saving > 0 && (
+        <p className="mt-1 inline-block rounded-full bg-success/15 px-2.5 py-0.5 text-xs font-bold text-success">
+          Save {formatPaise(saving)}
+        </p>
+      )}
+      <Link
+        href={href}
+        className={cn(
+          'mt-3 flex items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          button,
+        )}
+      >
+        {cta}
+        <ArrowRight className="size-4" aria-hidden="true" />
+      </Link>
     </div>
   );
 }

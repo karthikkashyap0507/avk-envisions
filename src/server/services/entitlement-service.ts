@@ -1,4 +1,4 @@
-import { PYQ_BUNDLE_SLUG, PYQ_SERIES_PREFIX } from '@/lib/enums';
+import { COMBO_INCLUDES, COMBO_SLUG, PYQ_BUNDLE_SLUG, PYQ_SERIES_PREFIX } from '@/lib/enums';
 import { db } from '@/server/db';
 
 /**
@@ -21,25 +21,38 @@ export function isPyqSeries(slug: string): boolean {
   return slug.startsWith(PYQ_SERIES_PREFIX) && slug !== PYQ_BUNDLE_SLUG;
 }
 
+/** The combo covers the three it names, and every year inside the PYQ bundle. */
+function comboCovers(slug: string): boolean {
+  return (COMBO_INCLUDES as readonly string[]).includes(slug) || isPyqSeries(slug);
+}
+
 /**
  * The series ids whose entitlement grants access to `seriesId`.
  *
- * Normally just the series itself. For a previous-year paper it also includes
- * the bundle, so one purchase opens every year.
+ * Normally just the series itself. A previous-year paper is also opened by
+ * the PYQ bundle; the bundle, KAS-50 and the full-length series are also
+ * opened by the Complete Practice Combo. So one purchase of the combo opens
+ * every paper in all three, through this one function — which is what every
+ * access check on the site goes through.
  */
 export async function grantingSeriesIds(seriesId: string): Promise<string[]> {
   const series = await db.testSeries.findUnique({
     where: { id: seriesId },
     select: { slug: true },
   });
-  if (!series || !isPyqSeries(series.slug)) return [seriesId];
+  if (!series) return [seriesId];
 
-  const bundle = await db.testSeries.findFirst({
-    where: { slug: PYQ_BUNDLE_SLUG, deletedAt: null },
+  const parents: string[] = [];
+  if (isPyqSeries(series.slug)) parents.push(PYQ_BUNDLE_SLUG);
+  if (comboCovers(series.slug)) parents.push(COMBO_SLUG);
+  if (parents.length === 0) return [seriesId];
+
+  const rows = await db.testSeries.findMany({
+    where: { slug: { in: parents }, deletedAt: null },
     select: { id: true },
   });
 
-  return bundle ? [seriesId, bundle.id] : [seriesId];
+  return [seriesId, ...rows.map((row) => row.id)];
 }
 
 /**
