@@ -121,7 +121,11 @@ export function PdfImport({ exams, series, tests, groups }: ImportTarget) {
 
   // --- Destination -------------------------------------------------------
   const [examId, setExamId] = React.useState(exams[0]?.id ?? '');
-  const [subjectId, setSubjectId] = React.useState(exams[0]?.subjects[0]?.id ?? '');
+  // Starts empty on purpose. It used to default to the exam's first subject,
+  // Indian Polity, so every paper imported without touching this dropdown had
+  // all its questions filed under Polity — history, geography and economy
+  // included — and printed that way on every exported PDF.
+  const [subjectId, setSubjectId] = React.useState('');
   const [target, setTarget] = React.useState<'NEW_TEST' | 'EXISTING_TEST' | 'BANK_ONLY'>('NEW_TEST');
   /**
    * Existing tests this import should also fill.
@@ -620,7 +624,7 @@ export function PdfImport({ exams, series, tests, groups }: ImportTarget) {
                 onChange={(event) => {
                   const next = exams.find((e) => e.id === event.target.value);
                   setExamId(event.target.value);
-                  setSubjectId(next?.subjects[0]?.id ?? '');
+                  setSubjectId('');
                 }}
                 className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"
               >
@@ -632,13 +636,21 @@ export function PdfImport({ exams, series, tests, groups }: ImportTarget) {
               </select>
             </FormField>
 
-            <FormField label="Subject" htmlFor="i-subject" required hint="All imported questions get this subject">
+            <FormField
+              label="Subject"
+              htmlFor="i-subject"
+              required
+              hint="Every question in this import is filed under the subject you pick. For a mixed paper, choose the main one and correct the rest in review."
+            >
               <select
                 id="i-subject"
                 value={subjectId}
                 onChange={(event) => setSubjectId(event.target.value)}
                 className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"
               >
+                <option value="" disabled>
+                  Choose a subject
+                </option>
                 {(exam?.subjects ?? []).map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name}
@@ -982,7 +994,7 @@ export function PdfImport({ exams, series, tests, groups }: ImportTarget) {
             onClick={commit}
             loading={committing}
             loadingText="Importing…"
-            disabled={unresolved > 0 || invalid > 0 || questions.length === 0}
+            disabled={!subjectId || unresolved > 0 || invalid > 0 || questions.length === 0}
           >
             <Upload aria-hidden="true" />
             Import {questions.length}
