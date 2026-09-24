@@ -169,6 +169,27 @@ export function PdfImport({ exams, series, tests, groups }: ImportTarget) {
   const unresolved = questions.filter((q) => q.correctIndex === null).length;
   const invalid = questions.filter((q) => q.options.length < 2 || !q.body.trim()).length;
 
+  /**
+   * Why Import cannot be pressed yet, or null when it can.
+   *
+   * The button and the message beside it both read this, so it is never
+   * disabled without saying why. It used to be: the subject became required
+   * and the bar still read "30 questions ready to import" over a greyed-out
+   * button, with the missing dropdown a long scroll above.
+   */
+  const blocker: string | null =
+    questions.length === 0
+      ? 'There are no questions to import'
+      : !subjectId
+        ? 'Choose a subject for these questions'
+        : unresolved > 0
+          ? `${unresolved} question${unresolved === 1 ? '' : 's'} still need${unresolved === 1 ? 's' : ''} an answer`
+          : invalid > 0
+            ? `${invalid} question${invalid === 1 ? ' is' : 's are'} incomplete`
+            : target === 'NEW_TEST' && title.trim().length < 3
+              ? 'Give the new test a title'
+              : null;
+
   // --- Upload ------------------------------------------------------------
   async function upload(file: File) {
     setParsing(true);
@@ -251,7 +272,7 @@ export function PdfImport({ exams, series, tests, groups }: ImportTarget) {
 
   // --- Commit ------------------------------------------------------------
   async function commit() {
-    if (unresolved > 0 || invalid > 0) return;
+    if (blocker) return;
 
     setCommitting(true);
     setError(null);
@@ -972,17 +993,36 @@ export function PdfImport({ exams, series, tests, groups }: ImportTarget) {
 
       {/* Commit ------------------------------------------------------------ */}
       <div className="sticky bottom-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background/95 p-4 shadow-elevated backdrop-blur">
-        <div className="text-sm">
-          {unresolved > 0 ? (
-            <span className="text-destructive">
-              {unresolved} question{unresolved === 1 ? '' : 's'} still need an answer
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          {blocker ? (
+            <span className="font-medium text-destructive" role="status">
+              {blocker}
             </span>
-          ) : invalid > 0 ? (
-            <span className="text-destructive">{invalid} question(s) are incomplete</span>
           ) : (
-            <span className="text-muted-foreground">
+            <span className="text-muted-foreground" role="status">
               {questions.length} questions ready to import
             </span>
+          )}
+
+          {/* The subject, offered right here when it is what is missing, so the
+              fix is beside the button rather than above thirty questions. It
+              is the same state as the dropdown in "Where do these go?". */}
+          {!subjectId && questions.length > 0 && (
+            <select
+              aria-label="Subject for these questions"
+              value={subjectId}
+              onChange={(event) => setSubjectId(event.target.value)}
+              className="h-9 rounded-lg border border-destructive/60 bg-background px-2 text-sm"
+            >
+              <option value="" disabled>
+                Choose a subject…
+              </option>
+              {(exam?.subjects ?? []).map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
           )}
         </div>
 
@@ -994,7 +1034,7 @@ export function PdfImport({ exams, series, tests, groups }: ImportTarget) {
             onClick={commit}
             loading={committing}
             loadingText="Importing…"
-            disabled={!subjectId || unresolved > 0 || invalid > 0 || questions.length === 0}
+            disabled={blocker !== null}
           >
             <Upload aria-hidden="true" />
             Import {questions.length}
