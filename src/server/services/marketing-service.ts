@@ -2,6 +2,7 @@ import 'server-only';
 
 import { cache } from 'react';
 
+import { FULL_LENGTH_SUBJECT_SLUGS } from '@/lib/enums';
 import { labelValueArraySchema, parseJsonColumn, stringArraySchema } from '@/lib/json';
 import { db } from '@/server/db';
 
@@ -217,7 +218,9 @@ export const getExamBySlug = cache(async (slug: string) => {
       seoDescription: true,
       highlightsJson: true,
       subjects: {
-        where: { isActive: true, deletedAt: null },
+        // The full-length paper subjects are for filing mixed papers, not part
+        // of the syllabus this page describes.
+        where: { isActive: true, deletedAt: null, slug: { notIn: FULL_LENGTH_SUBJECT_SLUGS } },
         orderBy: { sortOrder: 'asc' },
         select: {
           id: true,

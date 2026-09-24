@@ -22,6 +22,7 @@ import {
   NEGATIVE_MARKS_PER_QUESTION,
   totalMarksFor,
 } from '../src/lib/marking';
+import { FULL_LENGTH_SUBJECTS } from '../src/lib/enums';
 
 const db = new PrismaClient();
 
@@ -220,6 +221,25 @@ async function main() {
     subjectIds.set(subject.name, record.id);
   }
   console.log(`  ok  ${KAS_SUBJECTS.length} subjects`);
+
+  // Filing subjects for a whole full-length paper. Kept out of KAS_SUBJECTS on
+  // purpose: every entry there gets a subject drill built for each PYQ year
+  // below, and "Full Length Paper 1 — 2015" is not a drill anyone should see.
+  // Placed after the real subjects in every dropdown.
+  for (const [index, subject] of FULL_LENGTH_SUBJECTS.entries()) {
+    await db.subject.upsert({
+      where: { examId_slug: { examId, slug: subject.slug } },
+      update: { name: subject.name, sortOrder: 101 + index, isActive: true, deletedAt: null },
+      create: {
+        examId,
+        name: subject.name,
+        slug: subject.slug,
+        colorHex: '#475569',
+        sortOrder: 101 + index,
+      },
+    });
+  }
+  console.log(`  ok  ${FULL_LENGTH_SUBJECTS.length} full-length paper subjects`);
 
   // --- Retire merged / dropped subjects -----------------------------------
   // The catalogue was first seeded with separate Indian and Karnataka history

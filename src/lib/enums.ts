@@ -599,6 +599,22 @@ export const PAID_SERIES_SLUG = 'kas-prelims-paid-test-series';
  * PYQ bundle covers is covered too, since the bundle is one of them.
  */
 export const COMBO_SLUG = 'kas-complete-practice-combo';
+
+/**
+ * Subjects for filing a whole full-length paper, rather than a real subject.
+ *
+ * A full-length paper mixes every subject, and the import applies one subject
+ * to everything it brings in, so there was no honest choice: filing it under
+ * Polity is what put "Indian Polity" above ancient-history questions. These
+ * are offered wherever a subject is picked, but they are not part of the
+ * syllabus — no subject drill is built for them and the public exam page does
+ * not list them.
+ */
+export const FULL_LENGTH_SUBJECTS = [
+  { name: 'Full Length Paper 1', slug: 'full-length-paper-1' },
+  { name: 'Full Length Paper 2', slug: 'full-length-paper-2' },
+] as const;
+export const FULL_LENGTH_SUBJECT_SLUGS: string[] = FULL_LENGTH_SUBJECTS.map((s) => s.slug);
 export const COMBO_INCLUDES = [PYQ_BUNDLE_SLUG, DAILY_CHALLENGE_SLUG, PAID_SERIES_SLUG] as const;
 
 /** Slug prefix for its per-day papers. */
