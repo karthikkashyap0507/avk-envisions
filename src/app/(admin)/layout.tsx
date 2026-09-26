@@ -15,10 +15,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex min-h-dvh bg-muted/20">
-      <AdminSidebar user={identity} />
+      <AdminSidebar user={identity} permissions={user.permissions} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <AdminHeader user={identity} />
+        <AdminHeader user={identity} permissions={user.permissions} />
 
         <main id="main-content" className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
           {children}

@@ -17,7 +17,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
 import { formatDate, formatNumber, formatPaise } from '@/lib/utils';
-import { enforceAdminArea } from '@/server/auth/guards';
+import { can, enforceAdminArea } from '@/server/auth/guards';
+import { PERMISSIONS } from '@/server/auth/permissions';
 import {
   getAdminOverview,
   getIncompleteTests,
@@ -218,33 +219,43 @@ export default async function AdminDashboardPage() {
         {/* Commerce ----------------------------------------------------- */}
         <Card>
           <CardContent className="p-5 sm:p-6">
-            <h2 className="flex items-center gap-2 font-semibold tracking-tight">
-              <Receipt className="size-4 text-muted-foreground" aria-hidden="true" />
-              Commerce
-            </h2>
+            {/* Revenue and orders only for an admin who may see orders; the
+                support summary below is for everyone. */}
+            {can(user, PERMISSIONS.ORDER_READ) && (
+              <>
+                <h2 className="flex items-center gap-2 font-semibold tracking-tight">
+                  <Receipt className="size-4 text-muted-foreground" aria-hidden="true" />
+                  Commerce
+                </h2>
 
-            <div className="mt-4 space-y-3">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Revenue collected
-                </p>
-                <p className="mt-0.5 text-2xl font-semibold tabular-nums">
-                  {formatPaise(overview.commerce.revenueInPaise)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Paid orders</p>
-                <p className="mt-0.5 text-lg font-semibold tabular-nums">
-                  {overview.commerce.paidOrders}
-                </p>
-              </div>
-            </div>
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Revenue collected
+                    </p>
+                    <p className="mt-0.5 text-2xl font-semibold tabular-nums">
+                      {formatPaise(overview.commerce.revenueInPaise)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Paid orders</p>
+                    <p className="mt-0.5 text-lg font-semibold tabular-nums">
+                      {overview.commerce.paidOrders}
+                    </p>
+                  </div>
+                </div>
 
-            <Button asChild fullWidth variant="outline" size="sm" className="mt-5">
-              <Link href="/admin/orders">View orders</Link>
-            </Button>
+                <Button asChild fullWidth variant="outline" size="sm" className="mt-5">
+                  <Link href="/admin/orders">View orders</Link>
+                </Button>
+              </>
+            )}
 
-            <div className="mt-5 border-t border-border pt-4">
+            <div
+              className={
+                can(user, PERMISSIONS.ORDER_READ) ? 'mt-5 border-t border-border pt-4' : undefined
+              }
+            >
               <p className="flex items-center gap-2 text-sm font-medium">
                 <LifeBuoy className="size-4 text-muted-foreground" aria-hidden="true" />
                 Support

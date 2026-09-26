@@ -156,6 +156,24 @@ export async function enforceAdminArea(returnTo?: string): Promise<SessionUser> 
   return user;
 }
 
+/**
+ * An admin page that also needs one specific permission.
+ *
+ * Being an admin is not enough on its own for every page: a staff account can
+ * have single permissions revoked (see `ROLE_PERMISSIONS`), and a page that
+ * only checked the role would ignore that — the link could be hidden and the
+ * address typed in regardless. Sent back to the dashboard rather than shown an
+ * error, since the page is simply not theirs.
+ */
+export async function enforceAdminPermission(
+  permission: Permission,
+  returnTo?: string,
+): Promise<SessionUser> {
+  const user = await enforceAdminArea(returnTo);
+  if (!user.permissions.includes(permission)) redirect('/admin');
+  return user;
+}
+
 /** Redirects an already-signed-in visitor away from /login and /register. */
 export async function redirectIfAuthenticated(next?: string) {
   const user = await currentUser();

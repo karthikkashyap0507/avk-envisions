@@ -55,6 +55,8 @@ interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
+  /** Shown only to an admin holding this permission; the page checks it too. */
+  permission?: string;
 }
 
 const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
@@ -79,8 +81,8 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
   {
     title: 'People & money',
     items: [
-      { href: '/admin/users', label: 'Users', icon: Users },
-      { href: '/admin/orders', label: 'Orders', icon: Receipt },
+      { href: '/admin/users', label: 'Users', icon: Users, permission: 'user.read' },
+      { href: '/admin/orders', label: 'Orders', icon: Receipt, permission: 'order.read' },
       { href: '/admin/support', label: 'Support', icon: LifeBuoy },
       { href: '/admin/reports', label: 'Reported questions', icon: Flag },
       { href: '/admin/feedback', label: 'Feedback', icon: MessageSquare },
@@ -96,12 +98,24 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
   },
 ];
 
-function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+function NavLinks({
+  permissions,
+  onNavigate,
+}: {
+  permissions: readonly string[];
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
+
+  // A link to a page the admin cannot open is only a way to be bounced back.
+  const groups = NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => !item.permission || permissions.includes(item.permission)),
+  })).filter((group) => group.items.length > 0);
 
   return (
     <nav className="flex-1 space-y-6 px-3 py-4" aria-label="Admin">
-      {NAV_GROUPS.map((group) => (
+      {groups.map((group) => (
         <div key={group.title}>
           <p className="px-3 text-[0.6875rem] font-semibold uppercase tracking-widest text-muted-foreground">
             {group.title}
@@ -143,16 +157,18 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
 export interface AdminNavProps {
   user: { name: string; email: string; avatarUrl: string | null };
+  /** The signed-in admin's effective permissions, after any revocations. */
+  permissions: readonly string[];
 }
 
-export function AdminSidebar({ user }: AdminNavProps) {
+export function AdminSidebar({ user, permissions }: AdminNavProps) {
   return (
     <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-card lg:flex">
       <div className="flex h-16 items-center gap-2 border-b border-border px-5">
         <Logo href="/admin" />
       </div>
       <div className="scrollbar-slim flex flex-1 flex-col overflow-y-auto">
-        <NavLinks />
+        <NavLinks permissions={permissions} />
       </div>
       <div className="border-t border-border p-3">
         <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
@@ -167,7 +183,7 @@ export function AdminSidebar({ user }: AdminNavProps) {
   );
 }
 
-export function AdminHeader({ user }: AdminNavProps) {
+export function AdminHeader({ user, permissions }: AdminNavProps) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [signingOut, setSigningOut] = React.useState(false);
 
@@ -262,7 +278,7 @@ export function AdminHeader({ user }: AdminNavProps) {
               </Button>
             </div>
             <div className="scrollbar-slim flex-1 overflow-y-auto">
-              <NavLinks onNavigate={() => setMobileOpen(false)} />
+              <NavLinks permissions={permissions} onNavigate={() => setMobileOpen(false)} />
             </div>
           </div>
         </div>

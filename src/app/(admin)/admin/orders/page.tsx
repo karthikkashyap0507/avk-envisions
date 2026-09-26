@@ -7,7 +7,8 @@ import { StatCard } from '@/components/ui/stat-card';
 import { EmptyState } from '@/components/ui/states';
 import { serverEnv } from '@/lib/env';
 import { formatDate, formatPaise } from '@/lib/utils';
-import { enforceAdminArea } from '@/server/auth/guards';
+import { enforceAdminPermission } from '@/server/auth/guards';
+import { PERMISSIONS } from '@/server/auth/permissions';
 import { db } from '@/server/db';
 
 export const metadata: Metadata = {
@@ -18,7 +19,7 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function AdminOrdersPage() {
-  await enforceAdminArea('/admin/orders');
+  await enforceAdminPermission(PERMISSIONS.ORDER_READ, '/admin/orders');
 
   const [orders, paid, revenue, refunded] = await Promise.all([
     db.order.findMany({

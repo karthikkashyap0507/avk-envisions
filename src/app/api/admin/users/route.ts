@@ -1,7 +1,8 @@
 import { AppError, errors } from '@/lib/api';
 import { AUDIT_ACTIONS, audit } from '@/server/audit';
 import { parseBody, route } from '@/server/api-handler';
-import { requireAdmin } from '@/server/auth/guards';
+import { requirePermission } from '@/server/auth/guards';
+import { PERMISSIONS, type Permission } from '@/server/auth/permissions';
 import { revokeAllSessions } from '@/server/auth/session';
 import { db } from '@/server/db';
 import { userActionSchema } from '@/validations/admin';
@@ -13,9 +14,27 @@ import { userActionSchema } from '@/validations/admin';
  * itself: an admin cannot act on their own account, and the last remaining
  * admin cannot be demoted or suspended.
  */
+/**
+ * What each action needs beyond being able to manage users at all. Checked on
+ * the server, so a staff account with user access revoked is refused here
+ * even with the Users page hidden from it.
+ */
+const ACTION_PERMISSION: Record<string, Permission> = {
+  suspend: PERMISSIONS.USER_SUSPEND,
+  activate: PERMISSIONS.USER_SUSPEND,
+  make_admin: PERMISSIONS.USER_ASSIGN_ROLE,
+  make_student: PERMISSIONS.USER_ASSIGN_ROLE,
+  revoke_sessions: PERMISSIONS.SESSION_REVOKE_ANY,
+};
+
 export const PATCH = route(async ({ request, ip }) => {
-  const admin = await requireAdmin();
+  const admin = await requirePermission(PERMISSIONS.USER_UPDATE);
   const input = await parseBody(request, userActionSchema);
+
+  const needed = ACTION_PERMISSION[input.action];
+  if (needed && !admin.permissions.includes(needed)) {
+    throw new AppError('FORBIDDEN', 'Your account is not permitted to do that.');
+  }
 
   if (input.userId === admin.id) {
     throw new AppError(

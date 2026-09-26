@@ -115,6 +115,7 @@ for script in \
   prisma/build-free-tests.ts \
   prisma/seed-catalogue.ts \
   prisma/create-combo.ts \
+  prisma/seed-staff-admin.ts \
   prisma/set-pricing.ts \
   prisma/trim-free-test-2.ts \
   prisma/apply-50-days-schedule.ts \

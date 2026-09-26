@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/states';
 import { UserTable } from '@/features/admin/user-table';
-import { enforceAdminArea } from '@/server/auth/guards';
+import { enforceAdminPermission } from '@/server/auth/guards';
+import { PERMISSIONS } from '@/server/auth/permissions';
 import { listUsers } from '@/server/services/admin-service';
 
 export const metadata: Metadata = {
@@ -21,7 +22,7 @@ export default async function AdminUsersPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const admin = await enforceAdminArea('/admin/users');
+  const admin = await enforceAdminPermission(PERMISSIONS.USER_READ, '/admin/users');
   const params = await searchParams;
 
   const page = Math.max(1, Number.parseInt(params.page ?? '1', 10) || 1);
