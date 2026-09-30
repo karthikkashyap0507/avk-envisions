@@ -18,6 +18,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
 import { formatDate, formatNumber, formatPaise } from '@/lib/utils';
 import { can, enforceAdminArea } from '@/server/auth/guards';
+import { engineAvailable } from '@/server/translation/engine-client';
+import { translationCoverage } from '@/server/translation/translation-service';
+import { translationWorker } from '@/server/translation/worker';
 import { PERMISSIONS } from '@/server/auth/permissions';
 import {
   getAdminOverview,
@@ -35,11 +38,14 @@ export const dynamic = 'force-dynamic';
 export default async function AdminDashboardPage() {
   const user = await enforceAdminArea('/admin');
 
-  const [overview, activity, incomplete] = await Promise.all([
+  const [overview, activity, incomplete, kannadaUp, kannada] = await Promise.all([
     getAdminOverview(),
     getRecentActivity(),
     getIncompleteTests(),
+    engineAvailable(),
+    translationCoverage(),
   ]);
+  const kannadaWorker = translationWorker().status();
 
   const firstName = user.name.split(' ')[0] ?? user.name;
 
@@ -272,6 +278,44 @@ export default async function AdminDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Kannada translation ---------------------------------------------- */}
+      {/* The engine runs on this server with no key and no bill; this is the
+          only window onto whether it is up and how far it has got. */}
+      <Card>
+        <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:p-6">
+          <div className="min-w-0 flex-1">
+            <h2 className="flex items-center gap-2 font-semibold tracking-tight">
+              Kannada translation
+              <Badge variant={kannadaUp ? 'success' : 'warning'} size="sm">
+                {kannadaUp ? 'Engine running' : 'Engine not running'}
+              </Badge>
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {kannadaUp
+                ? 'Students can take any test in Kannada. New and edited questions are translated automatically.'
+                : 'Students see tests in English until the engine starts. It is installed and started by the deploy.'}
+            </p>
+            {kannadaWorker.lastError && !kannadaUp && (
+              <p className="mt-1 text-xs text-muted-foreground">Last error: {kannadaWorker.lastError}</p>
+            )}
+          </div>
+          <dl className="grid shrink-0 grid-cols-2 gap-6 text-sm">
+            <div>
+              <dt className="text-xs text-muted-foreground">Questions</dt>
+              <dd className="mt-0.5 font-semibold tabular-nums">
+                {kannada.stems}/{kannada.questions}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Solutions</dt>
+              <dd className="mt-0.5 font-semibold tabular-nums">
+                {kannada.solutions}/{kannada.withSolution}
+              </dd>
+            </div>
+          </dl>
+        </CardContent>
+      </Card>
 
       {/* Empty tests ------------------------------------------------------ */}
       {incomplete.length > 0 && (

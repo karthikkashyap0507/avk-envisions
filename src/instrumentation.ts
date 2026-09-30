@@ -8,6 +8,16 @@
  * setting.
  */
 export async function register() {
+  // Kannada translation runs in the background for the life of the server:
+  // on-demand requests first, then the untranslated backlog. It waits quietly
+  // when the local engine is not running. Inside an explicit NEXT_RUNTIME
+  // check, which the bundler removes for the edge build - an early return
+  // does not, and the edge build cannot bundle the worker.
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    const { startTranslationWorker } = await import('@/server/translation/worker');
+    startTranslationWorker();
+  }
+
   // Guard against the edge runtime, where neither Prisma nor pino can load.
   if (process.env.NEXT_RUNTIME !== 'nodejs') return;
 

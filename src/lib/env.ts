@@ -65,6 +65,13 @@ const serverSchema = z
     AI_BASE_URL: z.string().optional().default(''),
     AI_MAX_OUTPUT_TOKENS: intFromString(4096),
 
+    // The local Kannada translation engine (translator/server.py), reached
+    // over loopback. No key: it is an open-source model on the same machine.
+    TRANSLATOR_URL: z.string().default('http://127.0.0.1:8911'),
+    // Whether idle time is spent translating the question bank ahead of
+    // students asking for it. "off" still translates on demand.
+    TRANSLATION_BACKGROUND: z.enum(['on', 'off']).default('on'),
+
     SENTRY_DSN: z.string().optional().default(''),
     LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 

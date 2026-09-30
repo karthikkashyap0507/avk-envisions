@@ -71,10 +71,10 @@ model User {
   notificationPreference NotificationPreference?
   streak                 Streak?
 
-  sessions               Session[]
+  sessions                Session[]
   emailVerificationTokens EmailVerificationToken[]
-  passwordResetTokens    PasswordResetToken[]
-  extraPermissions       UserPermission[]
+  passwordResetTokens     PasswordResetToken[]
+  extraPermissions        UserPermission[]
 
   questionsCreated  Question[]       @relation("QuestionCreatedBy")
   questionsReviewed Question[]       @relation("QuestionReviewedBy")
@@ -102,16 +102,16 @@ model User {
   couponRedemptions CouponRedemption[]
   entitlements      Entitlement[]
 
-  notifications  Notification[]
-  ticketsOpened  SupportTicket[]  @relation("TicketAuthor")
-  feedback       Feedback[]       @relation("FeedbackAuthor")
-  ticketsAssigned SupportTicket[] @relation("TicketAssignee")
+  notifications   Notification[]
+  ticketsOpened   SupportTicket[]  @relation("TicketAuthor")
+  feedback        Feedback[]       @relation("FeedbackAuthor")
+  ticketsAssigned SupportTicket[]  @relation("TicketAssignee")
   supportMessages SupportMessage[]
 
-  blogPosts       BlogPost[]
-  announcements   Announcement[]  @relation("AnnouncementAuthor")
-  mediaAssets     MediaAsset[]
-  studyMaterials  StudyMaterial[] @relation("StudyMaterialUploader")
+  blogPosts      BlogPost[]
+  announcements  Announcement[]  @relation("AnnouncementAuthor")
+  mediaAssets    MediaAsset[]
+  studyMaterials StudyMaterial[] @relation("StudyMaterialUploader")
 
   auditLogs  AuditLog[]  @relation("AuditActor")
   aiRequests AIRequest[]
@@ -133,15 +133,15 @@ model StudentProfile {
   targetExamId String?
   targetExam   Exam?   @relation(fields: [targetExamId], references: [id], onDelete: SetNull)
 
-  targetYear        Int?
+  targetYear         Int?
   /// ISO 639-1 code: en | kn | hi | te | ta | ml
-  preferredLanguage String  @default("en")
-  city              String?
-  state             String?
+  preferredLanguage  String    @default("en")
+  city               String?
+  state              String?
   /// Public alias used on leaderboards when `leaderboardVisible` is true.
-  displayName       String?
-  leaderboardVisible Boolean @default(true)
-  onboardedAt       DateTime?
+  displayName        String?
+  leaderboardVisible Boolean   @default(true)
+  onboardedAt        DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -153,12 +153,12 @@ model StudentProfile {
 /// Server-side session. The raw token lives only in the client cookie; the DB
 /// stores a SHA-256 hash so a database leak cannot be replayed as a login.
 model Session {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String   @unique
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String @unique
   /// Must match `User.sessionEpoch` or the session is rejected.
-  epoch     Int      @default(0)
+  epoch     Int    @default(0)
 
   ipAddress String?
   userAgent String?
@@ -167,9 +167,9 @@ model Session {
   os        String?
 
   expiresAt    DateTime
-  lastActiveAt DateTime @default(now())
+  lastActiveAt DateTime  @default(now())
   revokedAt    DateTime?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
 
   @@index([userId, revokedAt])
   @@index([expiresAt])
@@ -177,13 +177,13 @@ model Session {
 }
 
 model EmailVerificationToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String   @unique
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId])
   @@index([expiresAt])
@@ -191,14 +191,14 @@ model EmailVerificationToken {
 }
 
 model PasswordResetToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String   @unique
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
   ipAddress String?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId])
   @@index([expiresAt])
@@ -224,12 +224,12 @@ model LoginAttempt {
 /// (`src/server/auth/permissions.ts`); this table stores *extra* grants and
 /// revocations layered on top of a user's role.
 model Permission {
-  id          String @id @default(cuid())
-  key         String @unique
+  id          String  @id @default(cuid())
+  key         String  @unique
   label       String
   description String?
   /// Grouping used to render the admin permission matrix.
-  category    String @default("general")
+  category    String  @default("general")
 
   users UserPermission[]
 
@@ -275,24 +275,24 @@ model Exam {
   seoTitle       String?
   seoDescription String?
 
-  isActive  Boolean @default(true)
+  isActive   Boolean @default(true)
   isFeatured Boolean @default(false)
-  sortOrder Int     @default(0)
+  sortOrder  Int     @default(0)
 
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  subjects        Subject[]
-  questions       Question[]
-  tests           Test[]
-  testSeries      TestSeries[]
-  studentProfiles StudentProfile[]
-  studyMaterials  StudyMaterial[]
+  subjects             Subject[]
+  questions            Question[]
+  tests                Test[]
+  testSeries           TestSeries[]
+  studentProfiles      StudentProfile[]
+  studyMaterials       StudyMaterial[]
   performanceSnapshots PerformanceSnapshot[]
-  studyPlans      StudyPlan[]
-  practiceSessions PracticeSession[]
-  planExams       PlanExam[]
+  studyPlans           StudyPlan[]
+  practiceSessions     PracticeSession[]
+  planExams            PlanExam[]
 
   @@index([isActive, sortOrder])
   @@index([category])
@@ -314,8 +314,8 @@ model Subject {
   isActive    Boolean @default(true)
 
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   chapters            Chapter[]
   questions           Question[]
@@ -345,8 +345,8 @@ model Chapter {
   isActive    Boolean @default(true)
 
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   topics           Topic[]
   questions        Question[]
@@ -371,8 +371,8 @@ model Topic {
   isActive    Boolean @default(true)
 
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   questions         Question[]
   topicPerformances TopicPerformance[]
@@ -397,13 +397,13 @@ model Question {
   code String @unique
 
   examId    String
-  exam      Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
   subjectId String
-  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   chapterId String?
   chapter   Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
   topicId   String?
-  topic     Topic?  @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  topic     Topic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
 
   /// SINGLE_CORRECT | MULTIPLE_CORRECT | NUMERICAL | TRUE_FALSE |
   /// ASSERTION_REASON | MATCH_THE_FOLLOWING | PASSAGE | CASE_STUDY | IMAGE_BASED
@@ -415,10 +415,10 @@ model Question {
   /// DRAFT | UNDER_REVIEW | APPROVED | PUBLISHED | ARCHIVED
   status String @default("DRAFT")
 
-  body        String
+  body     String
   /// Shared stimulus for PASSAGE / CASE_STUDY items.
-  passage     String?
-  imageUrl    String?
+  passage  String?
+  imageUrl String?
 
   /// KPSC KAS scheme: 2 marks correct, one quarter of that deducted for wrong.
   /// See `@/lib/marking` — these defaults must stay in step with it.
@@ -426,48 +426,48 @@ model Question {
   negativeMarks Float @default(0.5)
 
   /// For NUMERICAL: expected value and accepted tolerance (inclusive).
-  numericalAnswer   Float?
+  numericalAnswer    Float?
   numericalTolerance Float? @default(0)
 
   /// For MATCH_THE_FOLLOWING: JSON `{ left: [...], right: [...], pairs: [[i,j]] }`.
   matchDataJson String?
 
-  explanation     String?
+  explanation      String?
   detailedSolution String?
   /// One-line concept label used by the weak-topic engine and AI coach.
-  concept         String?
+  concept          String?
 
   source   String?
   examYear Int?
   /// ISO 639-1 code of the canonical language for `body`.
-  language String @default("en")
+  language String  @default("en")
 
   /// AI provenance. AI questions can never skip human review.
-  isAiGenerated Boolean @default(false)
+  isAiGenerated Boolean            @default(false)
   aiBatchId     String?
   aiBatch       AIGenerationBatch? @relation(fields: [aiBatchId], references: [id], onDelete: SetNull)
 
-  createdById String?
-  createdBy   User?   @relation("QuestionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdById  String?
+  createdBy    User?     @relation("QuestionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   reviewedById String?
-  reviewedBy  User?   @relation("QuestionReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
-  reviewedAt  DateTime?
-  reviewNote  String?
-  publishedAt DateTime?
+  reviewedBy   User?     @relation("QuestionReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  reviewNote   String?
+  publishedAt  DateTime?
 
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  options       QuestionOption[]
-  tags          QuestionTag[]
-  translations  QuestionTranslation[]
-  reports       QuestionReport[]
-  stat          QuestionStat?
-  testQuestions TestQuestion[]
-  testAnswers   TestAnswer[]
+  options         QuestionOption[]
+  tags            QuestionTag[]
+  translations    QuestionTranslation[]
+  reports         QuestionReport[]
+  stat            QuestionStat?
+  testQuestions   TestQuestion[]
+  testAnswers     TestAnswer[]
   practiceAnswers PracticeAnswer[]
-  bookmarks     Bookmark[]
+  bookmarks       Bookmark[]
 
   @@index([examId, status])
   @@index([subjectId, status])
@@ -528,13 +528,13 @@ model QuestionTranslation {
   questionId String
   question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
-  language        String
-  body            String
-  passage         String?
-  explanation     String?
+  language         String
+  body             String
+  passage          String?
+  explanation      String?
   detailedSolution String?
   /// JSON `{ "<optionId>": "translated body" }`.
-  optionsJson     String  @default("{}")
+  optionsJson      String  @default("{}")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -549,16 +549,16 @@ model QuestionStat {
   questionId String   @unique
   question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
-  attemptCount  Int   @default(0)
-  correctCount  Int   @default(0)
-  incorrectCount Int  @default(0)
-  skippedCount  Int   @default(0)
-  totalTimeMs   Int   @default(0)
-  reportCount   Int   @default(0)
+  attemptCount   Int @default(0)
+  correctCount   Int @default(0)
+  incorrectCount Int @default(0)
+  skippedCount   Int @default(0)
+  totalTimeMs    Int @default(0)
+  reportCount    Int @default(0)
 
   /// Derived: correctCount / attemptCount. Cached for sorting in admin.
-  accuracy       Float @default(0)
-  avgTimeSeconds Float @default(0)
+  accuracy           Float @default(0)
+  avgTimeSeconds     Float @default(0)
   /// Observed difficulty (1 - accuracy), used to flag mislabelled questions.
   observedDifficulty Float @default(0)
 
@@ -584,10 +584,10 @@ model QuestionReport {
   /// REPORTED | REVIEWING | RESOLVED | REJECTED
   status String @default("REPORTED")
 
-  resolverId   String?
-  resolver     User?     @relation("QuestionReportResolver", fields: [resolverId], references: [id], onDelete: SetNull)
+  resolverId     String?
+  resolver       User?     @relation("QuestionReportResolver", fields: [resolverId], references: [id], onDelete: SetNull)
   resolutionNote String?
-  resolvedAt   DateTime?
+  resolvedAt     DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -606,12 +606,12 @@ model TestSeries {
   examId String
   exam   Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
 
-  name        String
-  slug        String  @unique
-  tagline     String?
-  description String?
+  name         String
+  slug         String  @unique
+  tagline      String?
+  description  String?
   thumbnailUrl String?
-  bannerUrl   String?
+  bannerUrl    String?
 
   /// BEGINNER | INTERMEDIATE | ADVANCED | MIXED
   difficulty String @default("MIXED")
@@ -621,7 +621,7 @@ model TestSeries {
   track String @default("PAID_SERIES")
 
   /// Year of the paper. Set only for PYQ series, and what the year grid sorts on.
-  examYear Int?
+  examYear     Int?
   /// Distinguishes multiple papers from the same year, e.g. "August" / "December".
   sessionLabel String?
 
@@ -653,17 +653,16 @@ model TestSeries {
   offlineEnrolments Int @default(0)
 
   /// Lucide icon name rendered on the catalogue widget.
-  iconName String?
+  iconName  String?
   /// Accent colour for the widget card, as a hex string.
   accentHex String?
 
-
   /// Price in paise. `priceInPaise = 0` means the series is free.
-  priceInPaise         Int @default(0)
+  priceInPaise        Int @default(0)
   /// Struck-through reference price for the discount badge.
-  comparePriceInPaise  Int @default(0)
+  comparePriceInPaise Int @default(0)
   /// Days of access granted on purchase. 0 = lifetime.
-  accessDurationDays   Int @default(365)
+  accessDurationDays  Int @default(365)
 
   /// JSON array of feature strings rendered on the sales page.
   featuresJson String @default("[]")
@@ -680,8 +679,8 @@ model TestSeries {
   seoDescription String?
 
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   tests        Test[]
   faqs         Faq[]
@@ -703,9 +702,9 @@ model Test {
   testSeriesId String?
   testSeries   TestSeries? @relation(fields: [testSeriesId], references: [id], onDelete: SetNull)
 
-  title       String
-  slug        String  @unique
-  description String?
+  title        String
+  slug         String  @unique
+  description  String?
   instructions String?
 
   /// FULL_MOCK | SECTIONAL | CHAPTER | TOPIC | PRACTICE | PREVIOUS_YEAR | CUSTOM
@@ -726,12 +725,12 @@ model Test {
   subject   Subject? @relation("SubjectScopedTests", fields: [subjectId], references: [id], onDelete: SetNull)
 
   /// EXAM | PRACTICE | ADAPTIVE — controls answer/solution reveal behaviour.
-  mode     String @default("EXAM")
+  mode String @default("EXAM")
 
   durationMinutes Int
-  totalMarks      Float @default(0)
+  totalMarks      Float  @default(0)
   passingMarks    Float?
-  totalQuestions  Int   @default(0)
+  totalQuestions  Int    @default(0)
 
   negativeMarkingEnabled Boolean @default(true)
   /// Fallback ratio when a question defines no explicit negative marks.
@@ -751,8 +750,8 @@ model Test {
   /// FREE_NAVIGATION | SEQUENTIAL — sequential blocks going back.
   navigationMode String @default("FREE_NAVIGATION")
 
-  randomizeQuestions Boolean @default(false)
-  randomizeOptions   Boolean @default(false)
+  randomizeQuestions   Boolean @default(false)
+  randomizeOptions     Boolean @default(false)
   /// Per-section timers instead of one global timer.
   sectionTimingEnabled Boolean @default(false)
 
@@ -761,7 +760,7 @@ model Test {
   fullscreenRequired Boolean @default(false)
   maxTabSwitches     Int     @default(0)
 
-  showResultImmediately Boolean @default(true)
+  showResultImmediately Boolean   @default(true)
   /// Withhold results (and rank) until this moment for scheduled mocks.
   resultsAvailableAt    DateTime?
 
@@ -781,8 +780,8 @@ model Test {
   createdBy   User?   @relation("TestCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   sections       TestSection[]
   questions      TestQuestion[]
@@ -809,7 +808,7 @@ model TestSection {
   sortOrder    Int     @default(0)
 
   /// Only meaningful when the parent test has `sectionTimingEnabled`.
-  durationMinutes Int?
+  durationMinutes       Int?
   /// Optional per-section attempt cap (e.g. "answer any 20 of 30").
   maxQuestionsToAttempt Int?
 
@@ -900,10 +899,10 @@ model TestAttempt {
 
   /// Server-authoritative clock. `expiresAt` is computed at start time and is
   /// the only source of truth for the timer; the client display is advisory.
-  startedAt DateTime @default(now())
-  expiresAt DateTime
-  submittedAt DateTime?
-  lastSyncedAt DateTime @default(now())
+  startedAt    DateTime  @default(now())
+  expiresAt    DateTime
+  submittedAt  DateTime?
+  lastSyncedAt DateTime  @default(now())
 
   /// Frozen test configuration at the moment of starting, so later edits to
   /// the test never corrupt an in-flight or historical attempt.
@@ -914,15 +913,15 @@ model TestAttempt {
 
   timeSpentSeconds Int @default(0)
 
-  score          Float @default(0)
-  maxScore       Float @default(0)
-  percentage     Float @default(0)
-  accuracy       Float @default(0)
-  correctCount   Int   @default(0)
-  incorrectCount Int   @default(0)
-  unansweredCount Int  @default(0)
-  attemptedCount Int   @default(0)
-  markedForReviewCount Int @default(0)
+  score                Float @default(0)
+  maxScore             Float @default(0)
+  percentage           Float @default(0)
+  accuracy             Float @default(0)
+  correctCount         Int   @default(0)
+  incorrectCount       Int   @default(0)
+  unansweredCount      Int   @default(0)
+  attemptedCount       Int   @default(0)
+  markedForReviewCount Int   @default(0)
 
   rank       Int?
   percentile Float?
@@ -930,9 +929,9 @@ model TestAttempt {
   rankedAt   DateTime?
 
   /// Integrity counters — surfaced to admins, never auto-punitive.
-  tabSwitchCount    Int @default(0)
-  fullscreenExitCount Int @default(0)
-  suspiciousFlag    Boolean @default(false)
+  tabSwitchCount      Int     @default(0)
+  fullscreenExitCount Int     @default(0)
+  suspiciousFlag      Boolean @default(false)
 
   ipAddress String?
   userAgent String?
@@ -971,14 +970,14 @@ model TestAnswer {
   /// NOT_VISITED | NOT_ANSWERED | ANSWERED | MARKED_FOR_REVIEW | ANSWERED_MARKED
   state String @default("NOT_VISITED")
 
-  isCorrect   Boolean?
-  marksAwarded Float   @default(0)
-  timeSpentSeconds Int @default(0)
-  visitCount  Int      @default(0)
+  isCorrect        Boolean?
+  marksAwarded     Float    @default(0)
+  timeSpentSeconds Int      @default(0)
+  visitCount       Int      @default(0)
 
   answeredAt DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@unique([attemptId, testQuestionId])
   @@index([attemptId, state])
@@ -1021,7 +1020,7 @@ model PracticeSession {
   topic     Topic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
 
   /// NEW | INCORRECT | BOOKMARKED | WEAK_TOPIC | RANDOM | ADAPTIVE
-  source     String @default("NEW")
+  source     String  @default("NEW")
   difficulty String?
 
   /// IN_PROGRESS | COMPLETED | ABANDONED
@@ -1030,12 +1029,12 @@ model PracticeSession {
   /// JSON array of question ids selected for this session.
   questionIdsJson String @default("[]")
 
-  questionCount  Int @default(0)
-  attemptedCount Int @default(0)
-  correctCount   Int @default(0)
-  incorrectCount Int @default(0)
-  timeSpentSeconds Int @default(0)
-  accuracy       Float @default(0)
+  questionCount    Int   @default(0)
+  attemptedCount   Int   @default(0)
+  correctCount     Int   @default(0)
+  incorrectCount   Int   @default(0)
+  timeSpentSeconds Int   @default(0)
+  accuracy         Float @default(0)
 
   startedAt   DateTime  @default(now())
   completedAt DateTime?
@@ -1058,16 +1057,16 @@ model PracticeAnswer {
   questionId String
   question   Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
 
-  selectedOptionIdsJson String @default("[]")
+  selectedOptionIdsJson String    @default("[]")
   numericalValue        Float?
   isCorrect             Boolean?
-  timeSpentSeconds      Int     @default(0)
+  timeSpentSeconds      Int       @default(0)
   /// True once the student revealed the answer (practice mode only).
   revealedAt            DateTime?
 
   answeredAt DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@unique([sessionId, questionId])
   @@index([questionId, isCorrect])
@@ -1097,14 +1096,14 @@ model Bookmark {
 /// Point-in-time rollup written after each submitted attempt, so trend charts
 /// never recompute from raw answers.
 model PerformanceSnapshot {
-  id     String @id @default(cuid())
+  id     String  @id @default(cuid())
   userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   examId String?
-  exam   Exam?  @relation(fields: [examId], references: [id], onDelete: SetNull)
+  exam   Exam?   @relation(fields: [examId], references: [id], onDelete: SetNull)
 
   /// ATTEMPT | DAILY | WEEKLY | MONTHLY
-  period String @default("ATTEMPT")
+  period    String  @default("ATTEMPT")
   /// Present when `period` = ATTEMPT.
   attemptId String?
 
@@ -1139,26 +1138,26 @@ model TopicPerformance {
   topicId String
   topic   Topic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
 
-  totalAttempts  Int @default(0)
-  correctCount   Int @default(0)
-  incorrectCount Int @default(0)
-  skippedCount   Int @default(0)
+  totalAttempts    Int @default(0)
+  correctCount     Int @default(0)
+  incorrectCount   Int @default(0)
+  skippedCount     Int @default(0)
   totalTimeSeconds Int @default(0)
 
-  accuracy      Float @default(0)
-  avgTimeSeconds Float @default(0)
+  accuracy         Float  @default(0)
+  avgTimeSeconds   Float  @default(0)
   /// 0-100 mastery index blending accuracy, recency and volume.
-  masteryScore  Float @default(0)
+  masteryScore     Float  @default(0)
   /// Accuracy over the previous window, used to compute trend direction.
   previousAccuracy Float?
   /// IMPROVING | DECLINING | STABLE | INSUFFICIENT_DATA
-  trend         String @default("INSUFFICIENT_DATA")
+  trend            String @default("INSUFFICIENT_DATA")
   /// WEAK | MODERATE | STRONG | INSUFFICIENT_DATA
-  classification String @default("INSUFFICIENT_DATA")
+  classification   String @default("INSUFFICIENT_DATA")
 
   lastPracticedAt DateTime?
-  updatedAt       DateTime @updatedAt
-  createdAt       DateTime @default(now())
+  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime  @default(now())
 
   @@unique([userId, topicId])
   @@index([userId, classification])
@@ -1173,17 +1172,17 @@ model SubjectPerformance {
   subjectId String
   subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
-  totalAttempts  Int @default(0)
-  correctCount   Int @default(0)
-  incorrectCount Int @default(0)
-  skippedCount   Int @default(0)
+  totalAttempts    Int @default(0)
+  correctCount     Int @default(0)
+  incorrectCount   Int @default(0)
+  skippedCount     Int @default(0)
   totalTimeSeconds Int @default(0)
 
-  accuracy       Float @default(0)
-  avgTimeSeconds Float @default(0)
-  masteryScore   Float @default(0)
+  accuracy         Float  @default(0)
+  avgTimeSeconds   Float  @default(0)
+  masteryScore     Float  @default(0)
   previousAccuracy Float?
-  trend          String @default("INSUFFICIENT_DATA")
+  trend            String @default("INSUFFICIENT_DATA")
 
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
@@ -1198,24 +1197,24 @@ model SubjectPerformance {
 // ===========================================================================
 
 model StudyPlan {
-  id     String @id @default(cuid())
+  id     String  @id @default(cuid())
   userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   examId String?
-  exam   Exam?  @relation(fields: [examId], references: [id], onDelete: SetNull)
+  exam   Exam?   @relation(fields: [examId], references: [id], onDelete: SetNull)
 
   title       String
   description String?
   targetDate  DateTime?
 
-  dailyGoalMinutes   Int @default(120)
-  weeklyGoalTests    Int @default(2)
+  dailyGoalMinutes     Int @default(120)
+  weeklyGoalTests      Int @default(2)
   monthlyGoalQuestions Int @default(400)
 
   /// ACTIVE | COMPLETED | ARCHIVED
-  status String @default("ACTIVE")
+  status            String @default("ACTIVE")
   /// Cached 0-100 completion of all tasks.
-  completionPercent Float @default(0)
+  completionPercent Float  @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1238,7 +1237,7 @@ model StudyTask {
   title       String
   description String?
   /// STUDY | PRACTICE | TEST | REVISION
-  type        String @default("STUDY")
+  type        String  @default("STUDY")
 
   scheduledFor    DateTime
   durationMinutes Int      @default(60)
@@ -1286,11 +1285,11 @@ model Streak {
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  currentStreak Int     @default(0)
-  longestStreak Int     @default(0)
+  currentStreak   Int     @default(0)
+  longestStreak   Int     @default(0)
   /// YYYY-MM-DD of the last day with qualifying activity.
-  lastActiveDate String?
-  totalActiveDays Int    @default(0)
+  lastActiveDate  String?
+  totalActiveDays Int     @default(0)
 
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
@@ -1313,7 +1312,7 @@ model Achievement {
   /// Machine-readable unlock rule, e.g.
   /// `{ "metric": "tests_completed", "op": ">=", "value": 10 }`.
   criteriaJson String
-  points       Int  @default(10)
+  points       Int    @default(10)
 
   isActive  Boolean @default(true)
   sortOrder Int     @default(0)
@@ -1334,9 +1333,9 @@ model UserAchievement {
   achievementId String
   achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
 
-  unlockedAt DateTime @default(now())
+  unlockedAt DateTime  @default(now())
   /// Progress toward the criterion, for partially-completed achievements.
-  progress   Float    @default(100)
+  progress   Float     @default(100)
   seenAt     DateTime?
 
   @@unique([userId, achievementId])
@@ -1349,9 +1348,9 @@ model UserAchievement {
 // ===========================================================================
 
 model SubscriptionPlan {
-  id          String @id @default(cuid())
+  id          String  @id @default(cuid())
   name        String
-  slug        String @unique
+  slug        String  @unique
   description String?
   tagline     String?
 
@@ -1363,19 +1362,19 @@ model SubscriptionPlan {
   featuresJson String @default("[]")
 
   /// Usage limits. -1 means unlimited.
-  maxTestsPerMonth     Int @default(-1)
-  maxPracticeQuestionsPerDay Int @default(-1)
-  maxAiRequestsPerMonth Int @default(0)
+  maxTestsPerMonth           Int     @default(-1)
+  maxPracticeQuestionsPerDay Int     @default(-1)
+  maxAiRequestsPerMonth      Int     @default(0)
   /// Grants access to every test series of the included exams.
-  includesAllTestSeries Boolean @default(false)
+  includesAllTestSeries      Boolean @default(false)
 
   isActive   Boolean @default(true)
   isFeatured Boolean @default(false)
   sortOrder  Int     @default(0)
 
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   exams         PlanExam[]
   testSeries    PlanTestSeries[]
@@ -1409,27 +1408,27 @@ model PlanTestSeries {
 }
 
 model Subscription {
-  id     String @id @default(cuid())
+  id     String           @id @default(cuid())
   userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   planId String
   plan   SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
 
   /// ACTIVE | EXPIRED | CANCELLED | PENDING
   status String @default("PENDING")
 
-  startsAt    DateTime
-  expiresAt   DateTime
-  cancelledAt DateTime?
+  startsAt     DateTime
+  expiresAt    DateTime
+  cancelledAt  DateTime?
   cancelReason String?
 
   orderId String?
   order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
   /// Rolling usage counters reset by the subscription cron.
-  aiRequestsUsed  Int @default(0)
-  testsUsedThisMonth Int @default(0)
-  usageResetAt    DateTime?
+  aiRequestsUsed     Int       @default(0)
+  testsUsedThisMonth Int       @default(0)
+  usageResetAt       DateTime?
 
   /// Guards against sending the same expiry warning twice.
   expiryReminderSentAt DateTime?
@@ -1454,16 +1453,16 @@ model Entitlement {
   testSeries   TestSeries? @relation(fields: [testSeriesId], references: [id], onDelete: Cascade)
 
   /// PURCHASE | SUBSCRIPTION | ADMIN_GRANT | FREE
-  sourceType String @default("PURCHASE")
+  sourceType String  @default("PURCHASE")
   orderId    String?
   order      Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
-  startsAt  DateTime  @default(now())
+  startsAt    DateTime  @default(now())
   /// null = never expires.
-  expiresAt DateTime?
-  revokedAt DateTime?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
   grantedById String?
-  note      String?
+  note        String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1486,14 +1485,14 @@ model Order {
   /// CREATED | PENDING | PAID | FAILED | CANCELLED | REFUNDED | PARTIALLY_REFUNDED
   status String @default("CREATED")
 
-  subtotalInPaise Int @default(0)
-  discountInPaise Int @default(0)
-  taxInPaise      Int @default(0)
-  totalInPaise    Int @default(0)
+  subtotalInPaise Int    @default(0)
+  discountInPaise Int    @default(0)
+  taxInPaise      Int    @default(0)
+  totalInPaise    Int    @default(0)
   currency        String @default("INR")
 
-  couponId String?
-  coupon   Coupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  couponId   String?
+  coupon     Coupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
   couponCode String?
 
   /// Razorpay order id (`order_...`). Unique so a retry cannot duplicate.
@@ -1533,15 +1532,15 @@ model OrderItem {
   productType String
 
   testSeriesId String?
-  testSeries   TestSeries? @relation(fields: [testSeriesId], references: [id], onDelete: SetNull)
+  testSeries   TestSeries?       @relation(fields: [testSeriesId], references: [id], onDelete: SetNull)
   planId       String?
   plan         SubscriptionPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
 
   /// Frozen name/price so invoices stay correct after catalogue changes.
-  productName    String
+  productName      String
   unitPriceInPaise Int
-  quantity       Int @default(1)
-  totalInPaise   Int
+  quantity         Int    @default(1)
+  totalInPaise     Int
 
   createdAt DateTime @default(now())
 
@@ -1567,10 +1566,10 @@ model Payment {
   currency      String @default("INR")
 
   /// CREATED | AUTHORIZED | CAPTURED | FAILED | REFUNDED | PARTIALLY_REFUNDED
-  status String @default("CREATED")
+  status String  @default("CREATED")
   method String?
 
-  refundedAmountInPaise Int @default(0)
+  refundedAmountInPaise Int       @default(0)
   refundedAt            DateTime?
   refundReason          String?
 
@@ -1581,8 +1580,8 @@ model Payment {
   gatewayPayloadJson String?
 
   capturedAt DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@index([userId, status])
   @@index([orderId])
@@ -1593,17 +1592,17 @@ model Payment {
 /// Guarantees webhook idempotency: a duplicate delivery hits the unique index
 /// and is acknowledged without re-running side effects.
 model WebhookEvent {
-  id         String @id @default(cuid())
-  provider   String @default("RAZORPAY")
-  eventId    String
-  eventType  String
+  id          String @id @default(cuid())
+  provider    String @default("RAZORPAY")
+  eventId     String
+  eventType   String
   payloadJson String
 
   /// RECEIVED | PROCESSED | FAILED | IGNORED
-  status       String @default("RECEIVED")
+  status       String    @default("RECEIVED")
   processedAt  DateTime?
   errorMessage String?
-  attempts     Int    @default(0)
+  attempts     Int       @default(0)
 
   createdAt DateTime @default(now())
 
@@ -1623,17 +1622,17 @@ model Invoice {
   issuedAt      DateTime @default(now())
 
   /// Frozen buyer + seller details for legal compliance.
-  buyerName    String
-  buyerEmail   String
-  buyerAddress String?
-  sellerName   String
+  buyerName     String
+  buyerEmail    String
+  buyerAddress  String?
+  sellerName    String
   sellerAddress String?
-  sellerGstin  String?
+  sellerGstin   String?
 
   subtotalInPaise Int
-  discountInPaise Int @default(0)
-  taxPercent      Float @default(0)
-  taxInPaise      Int @default(0)
+  discountInPaise Int    @default(0)
+  taxPercent      Float  @default(0)
+  taxInPaise      Int    @default(0)
   totalInPaise    Int
   currency        String @default("INR")
 
@@ -1651,35 +1650,35 @@ model Coupon {
   id   String @id @default(cuid())
   code String @unique
 
-  description String?
+  description        String?
   /// PERCENTAGE | FIXED
-  discountType String @default("PERCENTAGE")
+  discountType       String  @default("PERCENTAGE")
   /// Percent (0-100) or paise, depending on `discountType`.
-  discountValue Int
+  discountValue      Int
   /// Caps the rupee value of a percentage discount. 0 = uncapped.
-  maxDiscountInPaise Int @default(0)
-  minOrderInPaise    Int @default(0)
+  maxDiscountInPaise Int     @default(0)
+  minOrderInPaise    Int     @default(0)
 
   startsAt  DateTime?
   expiresAt DateTime?
 
   /// 0 = unlimited.
-  usageLimit     Int @default(0)
-  usageCount     Int @default(0)
-  perUserLimit   Int @default(1)
+  usageLimit   Int @default(0)
+  usageCount   Int @default(0)
+  perUserLimit Int @default(1)
 
   /// JSON arrays restricting applicability; empty = applies to everything.
-  applicableTestSeriesJson String @default("[]")
-  applicablePlansJson      String @default("[]")
-  applicableUserIdsJson    String @default("[]")
+  applicableTestSeriesJson String  @default("[]")
+  applicablePlansJson      String  @default("[]")
+  applicableUserIdsJson    String  @default("[]")
   /// Restricts the coupon to accounts that have never purchased before.
-  firstPurchaseOnly Boolean @default(false)
+  firstPurchaseOnly        Boolean @default(false)
 
   isActive Boolean @default(true)
 
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   orders      Order[]
   redemptions CouponRedemption[]
@@ -1718,13 +1717,13 @@ model Notification {
   /// PAYMENT | ANNOUNCEMENT | ACHIEVEMENT | STUDY_REMINDER | SUPPORT | SYSTEM
   type String
 
-  title   String
-  body    String
+  title    String
+  body     String
   /// In-app deep link, e.g. /test/abc/result.
-  linkUrl String?
+  linkUrl  String?
   iconName String?
   /// LOW | NORMAL | HIGH
-  priority String @default("NORMAL")
+  priority String  @default("NORMAL")
 
   readAt    DateTime?
   createdAt DateTime  @default(now())
@@ -1739,8 +1738,8 @@ model NotificationPreference {
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  emailEnabled   Boolean @default(true)
-  inAppEnabled   Boolean @default(true)
+  emailEnabled    Boolean @default(true)
+  inAppEnabled    Boolean @default(true)
   whatsappEnabled Boolean @default(false)
 
   newTestAlerts      Boolean @default(true)
@@ -1765,11 +1764,11 @@ model NotificationPreference {
 // ===========================================================================
 
 model BlogCategory {
-  id          String @id @default(cuid())
-  name        String @unique
-  slug        String @unique
+  id          String  @id @default(cuid())
+  name        String  @unique
+  slug        String  @unique
   description String?
-  sortOrder   Int    @default(0)
+  sortOrder   Int     @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1784,8 +1783,8 @@ model BlogPost {
   title String
   slug  String @unique
 
-  excerpt      String?
-  content      String
+  excerpt       String?
+  content       String
   coverImageUrl String?
 
   authorId String?
@@ -1810,8 +1809,8 @@ model BlogPost {
   isFeatured  Boolean   @default(false)
 
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@index([status, publishedAt])
   @@index([categoryId, status])
@@ -1835,10 +1834,10 @@ model Testimonial {
   year        Int?
   city        String?
 
-  rating     Int     @default(5)
-  isFeatured Boolean @default(false)
+  rating      Int     @default(5)
+  isFeatured  Boolean @default(false)
   isPublished Boolean @default(false)
-  sortOrder  Int     @default(0)
+  sortOrder   Int     @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1880,7 +1879,7 @@ model Page {
   seoTitle       String?
   seoDescription String?
   /// DRAFT | PUBLISHED
-  status         String @default("PUBLISHED")
+  status         String  @default("PUBLISHED")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1919,22 +1918,22 @@ model ContentBlock {
 }
 
 model Announcement {
-  id      String @id @default(cuid())
+  id      String  @id @default(cuid())
   title   String
   body    String
   /// INFO | SUCCESS | WARNING | CRITICAL
-  level   String @default("INFO")
+  level   String  @default("INFO")
   linkUrl String?
 
   /// ALL | STUDENTS | SUBSCRIBERS
   audience String @default("ALL")
 
-  startsAt DateTime  @default(now())
-  endsAt   DateTime?
-  isActive Boolean   @default(true)
+  startsAt           DateTime  @default(now())
+  endsAt             DateTime?
+  isActive           Boolean   @default(true)
   /// Also push a Notification row to every targeted user.
-  sendAsNotification Boolean @default(false)
-  dispatchedAt DateTime?
+  sendAsNotification Boolean   @default(false)
+  dispatchedAt       DateTime?
 
   authorId String?
   author   User?   @relation("AnnouncementAuthor", fields: [authorId], references: [id], onDelete: SetNull)
@@ -1969,17 +1968,17 @@ model MediaAsset {
   id String @id @default(cuid())
 
   /// Object-storage key. Never a raw public URL for private assets.
-  storageKey String @unique
+  storageKey String  @unique
   fileName   String
   mimeType   String
   sizeBytes  Int
   /// IMAGE | PDF | DOCUMENT | OTHER
-  kind       String @default("OTHER")
+  kind       String  @default("OTHER")
   /// Private assets are served only through short-lived signed URLs.
   isPublic   Boolean @default(false)
 
-  width  Int?
-  height Int?
+  width    Int?
+  height   Int?
   checksum String?
 
   uploadedById String?
@@ -1992,8 +1991,8 @@ model MediaAsset {
 }
 
 model StudyMaterial {
-  id    String @id @default(cuid())
-  title String
+  id          String  @id @default(cuid())
+  title       String
   description String?
 
   examId    String?
@@ -2014,8 +2013,8 @@ model StudyMaterial {
   /// FREE | PAID | SUBSCRIBER_ONLY
   accessType String @default("FREE")
 
-  downloadCount Int @default(0)
-  sortOrder     Int @default(0)
+  downloadCount Int    @default(0)
+  sortOrder     Int    @default(0)
   /// DRAFT | PUBLISHED | ARCHIVED
   status        String @default("DRAFT")
 
@@ -2023,8 +2022,8 @@ model StudyMaterial {
   uploadedBy   User?   @relation("StudyMaterialUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
 
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@index([examId, status])
   @@index([subjectId, status])
@@ -2058,8 +2057,8 @@ model SupportTicket {
   attachmentsJson String @default("[]")
 
   /// Optional context linking the ticket to the object it is about.
-  relatedOrderId   String?
-  relatedTestId    String?
+  relatedOrderId    String?
+  relatedTestId     String?
   relatedQuestionId String?
 
   firstRespondedAt DateTime?
@@ -2086,10 +2085,10 @@ model SupportMessage {
   authorId String?
   author   User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
-  body String
+  body            String
   /// Staff-only note that the student never sees.
-  isInternalNote Boolean @default(false)
-  attachmentsJson String @default("[]")
+  isInternalNote  Boolean @default(false)
+  attachmentsJson String  @default("[]")
 
   createdAt DateTime @default(now())
 
@@ -2133,9 +2132,9 @@ model AIGenerationBatch {
 
 /// Individual AI call. Prompts are stored truncated; never store secrets.
 model AIRequest {
-  id     String @id @default(cuid())
+  id     String  @id @default(cuid())
   userId String?
-  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   /// COACH | QUESTION_GENERATION | EXPLANATION | STUDY_PLAN | RECOMMENDATION
   feature  String
@@ -2149,7 +2148,7 @@ model AIRequest {
   costInPaise      Int @default(0)
 
   /// SUCCESS | ERROR | RATE_LIMITED | BLOCKED
-  status       String @default("SUCCESS")
+  status       String  @default("SUCCESS")
   errorMessage String?
 
   /// Truncated prompt/response kept for quality review and abuse handling.
@@ -2187,8 +2186,8 @@ model AIUsage {
 model AuditLog {
   id String @id @default(cuid())
 
-  actorId   String?
-  actor     User?   @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorId    String?
+  actor      User?   @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
   /// Denormalised so the log stays readable after an account is deleted.
   actorEmail String?
   actorRole  String?
@@ -2224,17 +2223,17 @@ model Job {
   /// SEND_EMAIL | RECOMPUTE_RANKS | AGGREGATE_ANALYTICS | GENERATE_INVOICE |
   /// AI_GENERATE_QUESTIONS | SEND_NOTIFICATION | SUBSCRIPTION_REMINDERS |
   /// RECOMPUTE_QUESTION_STATS
-  type       String
+  type        String
   payloadJson String @default("{}")
 
   /// PENDING | RUNNING | COMPLETED | FAILED | DEAD
   status String @default("PENDING")
 
-  priority   Int @default(0)
-  attempts   Int @default(0)
+  priority    Int @default(0)
+  attempts    Int @default(0)
   maxAttempts Int @default(5)
 
-  runAt       DateTime @default(now())
+  runAt       DateTime  @default(now())
   startedAt   DateTime?
   completedAt DateTime?
   lastError   String?
@@ -2277,4 +2276,61 @@ model Feedback {
 
   @@index([status, createdAt])
   @@map("feedback")
+}
+
+/// A question, or a test's own text, translated into another language.
+///
+/// Made by the local translation engine, never typed by hand: admins write in
+/// English and students can read in Kannada. `sourceHash` fingerprints the
+/// English it was made from, so an edit to the English makes the translation
+/// stale and it is made again, rather than showing a translation of text that
+/// no longer exists.
+///
+/// A question's stem (what a student sees during a test) and its solution
+/// (shown only after submitting) are separate rows, so an in-progress paper
+/// never needs the solution translated - or sent.
+model ContentTranslation {
+  id String @id @default(cuid())
+
+  /// QUESTION_STEM | QUESTION_SOLUTION
+  entityType String
+  entityId   String
+  /// ISO 639-1, e.g. "kn".
+  language   String
+
+  /// sha256 of the English this was translated from.
+  sourceHash  String
+  /// The translated fields, as JSON.
+  payloadJson String
+  /// Which engine made it, e.g. "indictrans2-en-indic-200m-int8".
+  engine      String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([entityType, entityId, language])
+  @@index([language, entityType])
+  @@map("content_translations")
+}
+
+/// Every sentence translated once, whatever question it appears in.
+///
+/// Exam papers repeat themselves - "Which of the statements given above is/are
+/// correct?", "1 and 2 only" - and on a small server translating each copy
+/// again would be most of the work. It also keeps one sentence reading the
+/// same way in every paper.
+model TranslationMemory {
+  id String @id @default(cuid())
+
+  language   String
+  /// sha256 of the normalised English sentence.
+  sourceHash String
+  source     String
+  target     String
+  engine     String
+
+  createdAt DateTime @default(now())
+
+  @@unique([language, sourceHash])
+  @@map("translation_memory")
 }

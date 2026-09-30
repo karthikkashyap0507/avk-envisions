@@ -53,6 +53,8 @@ export interface QuestionPaletteProps {
   currentIndex: number;
   onJump: (index: number) => void;
   className?: string;
+  /** The paper's language: a Kannada paper labels its palette in Kannada. */
+  labels?: { questions: string; legend: string; states: Record<AnswerState, string> };
 }
 
 export function QuestionPalette({
@@ -60,7 +62,11 @@ export function QuestionPalette({
   currentIndex,
   onJump,
   className,
+  labels,
 }: QuestionPaletteProps) {
+  const legend = labels
+    ? LEGEND.map(({ state }) => ({ state, label: labels.states[state] }))
+    : LEGEND;
   const counts = React.useMemo(() => {
     const tally: Record<AnswerState, number> = {
       ANSWERED: 0,
@@ -77,7 +83,7 @@ export function QuestionPalette({
     <div className={cn('flex flex-col', className)}>
       <div className="scrollbar-slim flex-1 overflow-y-auto p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Questions
+          {labels?.questions ?? 'Questions'}
         </p>
 
         <div className="mt-3 grid grid-cols-5 gap-2" role="group" aria-label="Question navigation">
@@ -114,10 +120,10 @@ export function QuestionPalette({
 
       <div className="border-t border-border p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Legend
+          {labels?.legend ?? 'Legend'}
         </p>
         <ul className="mt-2.5 space-y-1.5">
-          {LEGEND.map(({ state, label }) => (
+          {legend.map(({ state, label }) => (
             <li key={state} className="flex items-center gap-2 text-xs">
               <span
                 aria-hidden="true"

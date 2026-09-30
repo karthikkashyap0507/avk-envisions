@@ -23,9 +23,11 @@ export interface ExamTimerProps {
   /** Fired once, when the countdown first reaches zero. */
   onExpire: () => void;
   className?: string;
+  /** Screen-reader wording, in the paper's language. */
+  labels?: { remaining: string; timeUp: string };
 }
 
-export function ExamTimer({ expiresAt, serverTime, onExpire, className }: ExamTimerProps) {
+export function ExamTimer({ expiresAt, serverTime, onExpire, className, labels }: ExamTimerProps) {
   const expiryMs = React.useMemo(() => new Date(expiresAt).getTime(), [expiresAt]);
 
   /**
@@ -91,7 +93,7 @@ export function ExamTimer({ expiresAt, serverTime, onExpire, className }: ExamTi
       // Announce only at meaningful thresholds; a per-second live region would
       // make the page unusable with a screen reader.
       role="timer"
-      aria-label="Time remaining"
+      aria-label={labels?.remaining ?? 'Time remaining'}
     >
       <Clock className={cn('size-4 shrink-0', critical && 'animate-pulse')} aria-hidden="true" />
       <span className="font-semibold">{formatClock(remaining)}</span>
@@ -102,7 +104,7 @@ export function ExamTimer({ expiresAt, serverTime, onExpire, className }: ExamTi
           : remaining === 60
             ? '1 minute remaining'
             : remaining === 0
-              ? 'Time is up. Submitting your test.'
+              ? (labels?.timeUp ?? 'Time is up. Submitting your test.')
               : ''}
       </span>
     </div>

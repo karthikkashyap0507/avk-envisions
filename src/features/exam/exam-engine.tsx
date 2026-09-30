@@ -10,6 +10,7 @@ import {
   CloudOff,
   Eraser,
   Flag,
+  Languages,
   LayoutGrid,
   Loader2,
   Send,
@@ -32,6 +33,13 @@ import { MULTI_SELECT_TYPES, type AnswerState } from '@/lib/enums';
 import { cn } from '@/lib/utils';
 import { ReportQuestion } from '@/features/practice/report-question';
 
+import {
+  EXAM_TEXT,
+  rememberLanguage,
+  storedLanguage,
+  useAttemptTranslation,
+  type ExamLanguage,
+} from './exam-language';
 import { ExamTimer } from './exam-timer';
 import { QuestionPalette, type PaletteEntry } from './question-palette';
 
@@ -85,6 +93,8 @@ export interface ExamEngineProps {
   initialAnswers: Record<string, EngineAnswer>;
   serverTime: string;
   expiresAt: string;
+  /** From `?lang=` - set when the student chose Kannada on the start screen. */
+  initialLanguage?: ExamLanguage;
 }
 
 /** How often queued changes are pushed to the server. */
@@ -107,6 +117,7 @@ export function ExamEngine({
   initialAnswers,
   serverTime,
   expiresAt,
+  initialLanguage,
 }: ExamEngineProps) {
   const router = useRouter();
 
@@ -132,6 +143,34 @@ export function ExamEngine({
 
   const current = questions[index]!;
   const currentAnswer = answers[current.testQuestionId]!;
+
+  // --- Language ------------------------------------------------------------
+  // Display only. Answers are option ids, the same in every language, so
+  // switching mid-paper can never change what is saved or how it is scored.
+  const [language, setLanguage] = React.useState<ExamLanguage>(initialLanguage ?? 'en');
+  React.useEffect(() => {
+    if (!initialLanguage) {
+      const remembered = storedLanguage();
+      if (remembered) setLanguage(remembered);
+    }
+  }, [initialLanguage]);
+
+  const switchLanguage = (next: ExamLanguage) => {
+    setLanguage(next);
+    rememberLanguage(next);
+    // Keep the choice in the address, so a reload opens the paper the same way.
+    const url = new URL(window.location.href);
+    if (next === 'kn') url.searchParams.set('lang', 'kn');
+    else url.searchParams.delete('lang');
+    window.history.replaceState(null, '', url);
+  };
+
+  const t = EXAM_TEXT[language];
+  const translation = useAttemptTranslation(attemptId, language, current.questionId);
+  const stem = language === 'kn' ? translation?.stems[current.questionId] : undefined;
+  const shownTitle = language === 'kn' && translation?.test ? translation.test.title : title;
+  const translating = language === 'kn' && !stem && (translation === null || translation.engineAvailable);
+  const unavailable = language === 'kn' && !stem && translation !== null && !translation.engineAvailable;
 
   // --- Dirty queue -------------------------------------------------------
   const pendingRef = React.useRef<Map<string, PendingPatch>>(new Map());
@@ -389,20 +428,19 @@ export function ExamEngine({
           `/api/attempts/${attemptId}/submit`,
           { reason },
         );
-        toast.success(reason === 'AUTO' ? 'Time is up — your test was submitted.' : 'Test submitted.');
-        router.replace(result.resultUrl);
+        toast.success(reason === 'AUTO' ? t.timeUpSubmitted : t.submitted);
+        // The result opens in the language the paper was taken in.
+        router.replace(language === 'kn' ? `${result.resultUrl}?lang=kn` : result.resultUrl);
       } catch (error) {
         submittedRef.current = false;
         setSubmitting(false);
         setConfirmOpen(false);
         toast.error(
-          error instanceof ApiClientError
-            ? error.message
-            : 'We could not submit your test. Please try again.',
+          error instanceof ApiClientError ? error.message : t.submitFailed,
         );
       }
     },
-    [attemptId, flush, router],
+    [attemptId, flush, router, language, t],
   );
 
   const handleExpire = React.useCallback(() => void submit('AUTO'), [submit]);
@@ -433,9 +471,9 @@ export function ExamEngine({
       <header className="sticky top-0 z-30 border-b border-border bg-background">
         <div className="flex h-14 items-center gap-3 px-3 sm:px-5">
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-sm font-semibold sm:text-base">{title}</h1>
+            <h1 className="truncate text-sm font-semibold sm:text-base">{shownTitle}</h1>
             <p className="text-xs text-muted-foreground">
-              {answeredCount} of {questions.length} answered · {totalMarks} marks
+              {t.answeredOf(answeredCount, questions.length)} · {totalMarks} {t.marks}
             </p>
           </div>
 
@@ -447,31 +485,59 @@ export function ExamEngine({
             {saveState === 'saving' && (
               <>
                 <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
-                Saving
+                {t.saving}
               </>
             )}
             {saveState === 'error' && (
               <span className="flex items-center gap-1.5 text-warning">
                 <CloudOff className="size-3.5" aria-hidden="true" />
-                Reconnecting
+                {t.reconnecting}
               </span>
             )}
             {saveState === 'idle' && (
               <span className="flex items-center gap-1.5">
                 <Check className="size-3.5 text-success" aria-hidden="true" />
-                Saved
+                {t.saved}
               </span>
             )}
           </div>
 
-          <ExamTimer expiresAt={expiresAt} serverTime={serverTime} onExpire={handleExpire} />
+          {/* Language: take the test in Kannada, switchable at any point. */}
+          <div
+            className="flex shrink-0 items-center rounded-lg border border-border p-0.5 text-xs font-semibold"
+            role="group"
+            aria-label="Language / ಭಾಷೆ"
+          >
+            <Languages className="mx-1 hidden size-3.5 text-muted-foreground sm:block" aria-hidden="true" />
+            {(['en', 'kn'] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => switchLanguage(option)}
+                aria-pressed={language === option}
+                className={cn(
+                  'rounded-md px-2 py-1 transition-colors',
+                  language === option ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted',
+                )}
+              >
+                {option === 'en' ? 'EN' : 'ಕನ್ನಡ'}
+              </button>
+            ))}
+          </div>
+
+          <ExamTimer
+            expiresAt={expiresAt}
+            serverTime={serverTime}
+            onExpire={handleExpire}
+            labels={{ remaining: t.timeRemaining, timeUp: t.timeUp }}
+          />
 
           <Button
             variant="outline"
             size="icon-sm"
             className="lg:hidden"
             onClick={() => setPaletteOpen(true)}
-            aria-label="Open question palette"
+            aria-label={t.openPalette}
           >
             <LayoutGrid aria-hidden="true" />
           </Button>
@@ -483,7 +549,7 @@ export function ExamEngine({
             disabled={submitting}
           >
             <Send aria-hidden="true" />
-            Submit
+            {t.submit}
           </Button>
         </div>
 
@@ -500,7 +566,7 @@ export function ExamEngine({
           <div className="mx-auto max-w-3xl">
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <span className="rounded-md bg-primary-muted px-2 py-1 font-semibold text-primary">
-                Question {current.sortOrder}
+                {t.question} {current.sortOrder}
               </span>
               <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">
                 +{current.marks}
@@ -508,19 +574,36 @@ export function ExamEngine({
               </span>
               {isMulti && (
                 <span className="rounded-md bg-warning/10 px-2 py-1 font-medium text-warning">
-                  Select all that apply
+                  {t.selectAll}
                 </span>
               )}
             </div>
 
+            {translating && (
+              <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground" role="status">
+                <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                {t.translating}
+              </p>
+            )}
+            {unavailable && (
+              <p
+                className="mt-4 rounded-lg border border-warning/25 bg-warning/10 px-3 py-2 text-xs text-warning"
+                role="status"
+              >
+                {t.unavailable}
+              </p>
+            )}
+
             {current.passage && (
               <div className="mt-5 rounded-lg border border-border bg-muted/30 p-4">
-                <p className="whitespace-pre-line text-question leading-relaxed">{current.passage}</p>
+                <p className="whitespace-pre-line text-question leading-relaxed" lang={stem?.passage ? 'kn' : undefined}>
+                  {stem?.passage ?? current.passage}
+                </p>
               </div>
             )}
 
-            <div className="mt-5 whitespace-pre-line text-question leading-relaxed">
-              {current.body}
+            <div className="mt-5 whitespace-pre-line text-question leading-relaxed" lang={stem ? 'kn' : undefined}>
+              {stem?.body ?? current.body}
             </div>
 
             {current.imageUrl && (
@@ -543,7 +626,7 @@ export function ExamEngine({
               {current.type === 'NUMERICAL' ? (
                 <div className="max-w-xs">
                   <label htmlFor="numeric-answer" className="text-sm font-medium">
-                    Your answer
+                    {t.yourAnswer}
                   </label>
                   <Input
                     id="numeric-answer"
@@ -551,7 +634,7 @@ export function ExamEngine({
                     inputMode="decimal"
                     step="any"
                     className="mt-1.5"
-                    placeholder="Enter a number"
+                    placeholder={t.enterNumber}
                     value={currentAnswer.numericalValue ?? ''}
                     onChange={(event) => setNumeric(event.target.value)}
                   />
@@ -591,8 +674,11 @@ export function ExamEngine({
                           >
                             {option.label}
                           </span>
-                          <span className="flex-1 whitespace-pre-line pt-0.5 text-[0.975rem] leading-relaxed">
-                            {option.body}
+                          <span
+                            className="flex-1 whitespace-pre-line pt-0.5 text-[0.975rem] leading-relaxed"
+                            lang={stem?.options[option.id] ? 'kn' : undefined}
+                          >
+                            {stem?.options[option.id] ?? option.body}
                           </span>
                           <span className="sr-only">
                             Option {optionIndex + 1}
@@ -605,16 +691,28 @@ export function ExamEngine({
                 </fieldset>
               )}
             </div>
+
+            {stem && t.machineNote && (
+              <p className="mt-6 text-xs leading-relaxed text-muted-foreground" lang="kn">
+                {t.machineNote}
+              </p>
+            )}
           </div>
         </main>
 
         {/* Palette — desktop --------------------------------------------- */}
         <aside className="hidden w-72 shrink-0 border-l border-border bg-card lg:flex lg:flex-col">
-          <QuestionPalette entries={paletteEntries} currentIndex={index} onJump={goTo} className="flex-1" />
+          <QuestionPalette
+            entries={paletteEntries}
+            currentIndex={index}
+            onJump={goTo}
+            className="flex-1"
+            labels={language === 'kn' ? { questions: t.questions, legend: 'ಸೂಚಿ', states: t.legend } : undefined}
+          />
           <div className="border-t border-border p-4">
             <Button fullWidth onClick={() => setConfirmOpen(true)} disabled={submitting}>
               <Send aria-hidden="true" />
-              Submit test
+              {t.submitTest}
             </Button>
           </div>
         </aside>
@@ -631,12 +729,12 @@ export function ExamEngine({
             className="shrink-0"
           >
             <ChevronLeft aria-hidden="true" />
-            <span className="hidden sm:inline">Previous</span>
+            <span className="hidden sm:inline">{t.previous}</span>
           </Button>
 
           <Button variant="ghost" size="sm" onClick={clearResponse} className="shrink-0">
             <Eraser aria-hidden="true" />
-            <span className="hidden sm:inline">Clear</span>
+            <span className="hidden sm:inline">{t.clear}</span>
           </Button>
 
           <Button
@@ -647,7 +745,7 @@ export function ExamEngine({
             aria-pressed={isMarked}
           >
             <Flag aria-hidden="true" />
-            <span className="hidden sm:inline">{isMarked ? 'Unmark' : 'Mark for review'}</span>
+            <span className="hidden sm:inline">{isMarked ? t.unmark : t.mark}</span>
           </Button>
 
           <div className="flex-1" />
@@ -655,12 +753,12 @@ export function ExamEngine({
           {index === questions.length - 1 ? (
             <Button size="sm" onClick={() => setConfirmOpen(true)} disabled={submitting}>
               <Send aria-hidden="true" />
-              Submit
+              {t.submit}
             </Button>
           ) : (
             <Button size="sm" onClick={() => goTo(index + 1)}>
-              <span className="hidden sm:inline">Save &amp; next</span>
-              <span className="sm:hidden">Next</span>
+              <span className="hidden sm:inline">{t.saveNext}</span>
+              <span className="sm:hidden">{t.next}</span>
               <ChevronRight aria-hidden="true" />
             </Button>
           )}
@@ -673,17 +771,17 @@ export function ExamEngine({
           <button
             className="absolute inset-0 bg-foreground/40"
             onClick={() => setPaletteOpen(false)}
-            aria-label="Close question palette"
+            aria-label={t.close}
             tabIndex={-1}
           />
           <div className="absolute inset-x-0 bottom-0 max-h-[75vh] rounded-t-2xl bg-card shadow-float">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
-              <p className="font-semibold">Questions</p>
+              <p className="font-semibold">{t.questions}</p>
               <Button
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => setPaletteOpen(false)}
-                aria-label="Close"
+                aria-label={t.close}
               >
                 <X aria-hidden="true" />
               </Button>
@@ -693,6 +791,7 @@ export function ExamEngine({
               currentIndex={index}
               onJump={goTo}
               className="max-h-[60vh]"
+              labels={language === 'kn' ? { questions: t.questions, legend: 'ಸೂಚಿ', states: t.legend } : undefined}
             />
           </div>
         </div>
@@ -702,27 +801,25 @@ export function ExamEngine({
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent size="sm">
           <DialogHeader>
-            <DialogTitle>Submit your test?</DialogTitle>
-            <DialogDescription>
-              You cannot change your answers after submitting.
-            </DialogDescription>
+            <DialogTitle>{t.confirmTitle}</DialogTitle>
+            <DialogDescription>{t.confirmBody}</DialogDescription>
           </DialogHeader>
 
           <dl className="grid grid-cols-3 gap-3 text-center">
             <div className="rounded-lg bg-muted/50 p-3">
-              <dt className="text-xs text-muted-foreground">Answered</dt>
+              <dt className="text-xs text-muted-foreground">{t.answered}</dt>
               <dd className="mt-0.5 text-lg font-semibold tabular-nums text-success">
                 {answeredCount}
               </dd>
             </div>
             <div className="rounded-lg bg-muted/50 p-3">
-              <dt className="text-xs text-muted-foreground">Unanswered</dt>
+              <dt className="text-xs text-muted-foreground">{t.unanswered}</dt>
               <dd className="mt-0.5 text-lg font-semibold tabular-nums text-destructive">
                 {questions.length - answeredCount}
               </dd>
             </div>
             <div className="rounded-lg bg-muted/50 p-3">
-              <dt className="text-xs text-muted-foreground">Marked</dt>
+              <dt className="text-xs text-muted-foreground">{t.marked}</dt>
               <dd className="mt-0.5 text-lg font-semibold tabular-nums text-exam-review">
                 {
                   paletteEntries.filter(
@@ -736,18 +833,16 @@ export function ExamEngine({
           {answeredCount < questions.length && (
             <p className="flex items-start gap-2 rounded-lg border border-warning/25 bg-warning/10 p-3 text-sm text-warning">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-              You have {questions.length - answeredCount} unanswered{' '}
-              {questions.length - answeredCount === 1 ? 'question' : 'questions'}. Unanswered
-              questions score zero, with no penalty.
+              {t.unansweredWarning(questions.length - answeredCount)}
             </p>
           )}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={submitting}>
-              Keep working
+              {t.keepWorking}
             </Button>
-            <Button onClick={() => void submit('MANUAL')} loading={submitting} loadingText="Submitting…">
-              Submit test
+            <Button onClick={() => void submit('MANUAL')} loading={submitting} loadingText={t.submitting}>
+              {t.submitTest}
             </Button>
           </DialogFooter>
         </DialogContent>

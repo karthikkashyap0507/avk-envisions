@@ -27,8 +27,15 @@ export const dynamic = 'force-dynamic';
  * in the catalogue share one URL shape, and means a student who bookmarks the
  * page mid-attempt lands somewhere sensible afterwards.
  */
-export default async function TestPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function TestPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ lang?: string }>;
+}) {
+  const [{ id }, query] = await Promise.all([params, searchParams]);
+  const language = query.lang === 'kn' ? 'kn' : undefined;
 
   // A signed-out visitor heading for a free test is offered the guest route —
   // name and phone number — rather than a login wall. Anything else (a paid
@@ -74,6 +81,7 @@ export default async function TestPage({ params }: { params: Promise<{ id: strin
         initialAnswers={state.answers}
         serverTime={state.serverTime}
         expiresAt={state.expiresAt}
+        initialLanguage={language}
       />
     );
   }

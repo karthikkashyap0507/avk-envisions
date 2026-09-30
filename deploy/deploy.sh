@@ -38,6 +38,10 @@ if [[ -f "$DATA_DIR/production.db" ]]; then
   /usr/local/bin/avk-backup
 fi
 
+# The translation engine holds most of a gigabyte. The build below needs it
+# more, on a 2 GB machine; the engine is started again once the site is up.
+systemctl stop avk-translator 2>/dev/null || true
+
 echo "==> Installing dependencies"
 # `npm ci` not `npm install`: installs exactly what the lockfile says, so a
 # transitive dependency cannot change between your machine and production.
@@ -125,6 +129,7 @@ for script in \
   prisma/set-pyq-subject-durations.ts \
   prisma/fix-test-modes.ts \
   prisma/set-offline-enrolments.ts \
+  prisma/seed-translation-memory.ts \
   prisma/hide-empty-tests.ts
 do
   if ! sudo -u "$APP_USER" npx tsx "$script"; then
@@ -151,6 +156,15 @@ for i in $(seq 1 30); do
     echo "Deployed. The site is live."
     echo "  Logs:   sudo journalctl -u avkvisions -f"
     echo "  Status: sudo systemctl status avkvisions"
+
+    # Last, and never fatal: the site is already serving. If the engine
+    # cannot be set up, tests stay readable in English and the next deploy
+    # tries again.
+    echo "==> Kannada translation engine"
+    if ! bash "$APP_DIR/deploy/setup-translator.sh"; then
+      echo "    WARNING: the translation engine is not running; tests show in English." >&2
+      echo "    Logs: sudo journalctl -u avk-translator -n 50" >&2
+    fi
     exit 0
   fi
   sleep 2

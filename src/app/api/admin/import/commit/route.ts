@@ -4,6 +4,7 @@ import { parseBody, route } from '@/server/api-handler';
 import { requireAdmin } from '@/server/auth/guards';
 import { db } from '@/server/db';
 import { refreshTestTotals } from '@/server/services/admin-service';
+import { translationWorker } from '@/server/translation/worker';
 import { importCommitSchema } from '@/validations/import';
 
 /**
@@ -225,6 +226,14 @@ export const POST = route(async ({ request, ip }) => {
     },
     ipAddress: ip,
   });
+
+  // Admins write English only. Queue the new questions for Kannada now,
+  // stems then solutions, rather than waiting for the worker's next scan -
+  // so a paper imported today reads in Kannada as soon as it is published.
+  const worker = translationWorker();
+  worker.request(result.createdIds.map((qid) => `stem:${qid}` as const));
+  worker.request(result.createdIds.map((qid) => `solution:${qid}` as const));
+  for (const row of result.attached) worker.request([`test:${row.testId}` as const]);
 
   const totalSkipped = result.attached.reduce((sum, row) => sum + row.skipped, 0);
   const places = result.attached.length;

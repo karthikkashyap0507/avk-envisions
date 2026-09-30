@@ -1,0 +1,8 @@
+# The Kannada translation service. Pinned, so the server installs exactly what
+# was tested. indic-nlp-library is installed separately with --no-deps: its
+# declared dependencies (pandas, sphinx) are for parts this service never uses.
+onnxruntime==1.20.1
+tokenizers==0.21.0
+numpy==1.26.4
+regex==2024.11.6
+sacremoses==0.1.1
