@@ -15,11 +15,20 @@ import { logger } from '@/server/logger';
 
 export const ENGINE_NAME = 'indictrans2-en-indic-200m-int8';
 
-/** Sentences per request: small enough to answer well inside the timeout on the server. */
-const BATCH = 24;
+/**
+ * Sentences per request.
+ *
+ * Small, because the engine on the server is capped at a fraction of one CPU
+ * so it cannot slow the website: there, a sentence can take tens of seconds.
+ * At 24 per request every request outlived its timeout, and the engine kept
+ * working on each abandoned one while the next queued behind it - so nothing
+ * new ever finished. Four finish well inside the timeout, and each batch is
+ * saved as it lands, so progress is never thrown away.
+ */
+export const ENGINE_BATCH = 4;
 const HEALTH_TIMEOUT_MS = 2_500;
-/** A batch on the 2-vCPU server can take a while; the website never waits on it. */
-const TRANSLATE_TIMEOUT_MS = 180_000;
+/** Generous: a batch of long solution sentences on the capped server is slow, and nobody waits on it. */
+const TRANSLATE_TIMEOUT_MS = 15 * 60_000;
 
 let lastHealth: { ok: boolean; at: number } | null = null;
 
@@ -50,8 +59,8 @@ export class EngineUnavailableError extends Error {
 /** Translate English sentences to Kannada, in order. Throws if the engine is down. */
 export async function translateSentences(sentences: string[]): Promise<string[]> {
   const results: string[] = [];
-  for (let start = 0; start < sentences.length; start += BATCH) {
-    const batch = sentences.slice(start, start + BATCH);
+  for (let start = 0; start < sentences.length; start += ENGINE_BATCH) {
+    const batch = sentences.slice(start, start + ENGINE_BATCH);
     let response: Response;
     try {
       response = await fetch(`${serverEnv().TRANSLATOR_URL}/translate`, {

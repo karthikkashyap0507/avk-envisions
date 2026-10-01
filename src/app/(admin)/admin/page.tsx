@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
-import { formatDate, formatNumber, formatPaise } from '@/lib/utils';
+import { formatDate, formatNumber, formatPaise, formatRelativeTime } from '@/lib/utils';
 import { can, enforceAdminArea } from '@/server/auth/guards';
 import { engineAvailable } from '@/server/translation/engine-client';
 import { translationCoverage } from '@/server/translation/translation-service';
@@ -296,8 +296,17 @@ export default async function AdminDashboardPage() {
                 ? 'Students can take any test in Kannada. New and edited questions are translated automatically.'
                 : 'Students see tests in English until the engine starts. It is installed and started by the deploy.'}
             </p>
-            {kannadaWorker.lastError && !kannadaUp && (
-              <p className="mt-1 text-xs text-muted-foreground">Last error: {kannadaWorker.lastError}</p>
+            {/* Whether it is moving, not just whether it is up: a stalled
+                engine still answers its health check. */}
+            <p className="mt-1 text-xs text-muted-foreground">
+              {kannadaWorker.lastDoneAt
+                ? `Last translated ${formatRelativeTime(kannadaWorker.lastDoneAt)}`
+                : 'Nothing translated since the server last started'}
+              {kannadaWorker.queued > 0 && ` · ${kannadaWorker.queued} waiting for students`}
+              {kannadaWorker.backlog !== null && ` · ${kannadaWorker.backlog} in the background queue`}
+            </p>
+            {kannadaWorker.lastError && (
+              <p className="mt-0.5 text-xs text-warning">Last error: {kannadaWorker.lastError}</p>
             )}
           </div>
           <dl className="grid shrink-0 grid-cols-2 gap-6 text-sm">

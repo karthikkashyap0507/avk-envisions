@@ -5,7 +5,7 @@ import { createHash } from 'crypto';
 import { db } from '@/server/db';
 import { logger } from '@/server/logger';
 
-import { ENGINE_NAME, translateSentences } from './engine-client';
+import { ENGINE_BATCH, ENGINE_NAME, translateSentences } from './engine-client';
 import { planHtml, planPlainText, render, sentencesOf, type HtmlPiece, type Piece } from './segments';
 
 /**
@@ -125,10 +125,15 @@ async function translateWithMemory(sentences: string[]): Promise<Map<string, str
     for (const row of rows) known.set(keyOf.get(row.sourceHash)!, row.target);
   }
 
+  // One small batch at a time, each remembered the moment it comes back. On
+  // the capped server a long solution is minutes of work; if the engine
+  // stops part-way, every sentence already translated is kept, and the next
+  // attempt starts where this one ended instead of from the beginning.
   const missing = unique.filter((s) => !known.has(s));
-  if (missing.length > 0) {
-    const translated = await translateSentences(missing);
-    for (const [i, source] of missing.entries()) {
+  for (let start = 0; start < missing.length; start += ENGINE_BATCH) {
+    const batch = missing.slice(start, start + ENGINE_BATCH);
+    const translated = await translateSentences(batch);
+    for (const [i, source] of batch.entries()) {
       const target = translated[i]?.trim() ?? '';
       if (!looksKannada(target)) {
         // The engine answered but not in Kannada - a bare name or a code, or

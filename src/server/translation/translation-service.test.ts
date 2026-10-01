@@ -57,12 +57,13 @@ vi.mock('@/server/db', () => ({
   },
 }));
 
-const engine = { calls: [] as string[][], down: false, refuse: new Set<string>() };
+const engine = { calls: [] as string[][], down: false, refuse: new Set<string>(), failAfter: Infinity };
 vi.mock('./engine-client', () => ({
   ENGINE_NAME: 'test-engine',
+  ENGINE_BATCH: 4,
   EngineUnavailableError: class extends Error {},
   translateSentences: async (sentences: string[]) => {
-    if (engine.down) throw new Error('engine down');
+    if (engine.down || engine.calls.length >= engine.failAfter) throw new Error('engine down');
     engine.calls.push(sentences);
     // A recognisable "translation": Kannada letters prefixed to the English.
     return sentences.map((s) => (engine.refuse.has(s) ? s : `ಕ ${s}`));
@@ -97,6 +98,7 @@ beforeEach(() => {
   engine.calls = [];
   engine.down = false;
   engine.refuse = new Set();
+  engine.failAfter = Infinity;
 });
 
 describe('translateQuestions', () => {
@@ -147,6 +149,27 @@ describe('translateQuestions', () => {
     await translateQuestions(['q1'], 'stem');
     expect((await readQuestionTranslations(['q1'], ['stem'])).stems.q1!.options['q1-o1']).toBe('A only');
     expect(store.memory.some((m) => m.source === 'A only')).toBe(false);
+  });
+
+  it('asks the engine in small batches', async () => {
+    store.questions.push(question('q1', { body: 'One. Two. Three. Four. Five. Six.' }));
+    await translateQuestions(['q1'], 'stem');
+    expect(engine.calls.every((batch) => batch.length <= 4)).toBe(true);
+  });
+
+  it('keeps what was translated before the engine failed, and resumes from there', async () => {
+    store.questions.push(question('q1', { body: 'One. Two. Three. Four. Five. Six.' }));
+    engine.failAfter = 1;
+    await expect(translateQuestions(['q1'], 'stem')).rejects.toThrow();
+    // The question is not stored half-done, but the first batch is remembered.
+    expect(store.translations).toEqual([]);
+    expect(store.memory.map((m) => m.source).sort()).toEqual(['Four.', 'One.', 'Three.', 'Two.']);
+
+    engine.failAfter = Infinity;
+    engine.calls = [];
+    await translateQuestions(['q1'], 'stem');
+    expect(engine.calls.flat()).not.toContain('One.');
+    expect((await readQuestionTranslations(['q1'], ['stem'])).pending.stem).toEqual([]);
   });
 
   it('stores nothing when the engine is down', async () => {
