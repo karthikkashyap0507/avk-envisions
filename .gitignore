@@ -84,3 +84,7 @@ yarn-error.log*
 
 # OCR intermediates. The parsed result is committed as prisma/data/*.json.
 ocr-*.txt
+
+# Python caches (translator/)
+__pycache__/
+*.pyc

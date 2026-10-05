@@ -8,6 +8,8 @@ import {
   isPdf,
   storeTestSynopsis,
 } from '@/server/services/synopsis-service';
+import { removeKannadaDocument } from '@/server/translation/document-translation';
+import { translationWorker } from '@/server/translation/worker';
 
 /**
  * Manage the question-wise analysis PDF for a paper or a series.
@@ -19,6 +21,9 @@ import {
  *
  * The file is verified to be a real PDF by its leading bytes rather than by its
  * name or the browser's content-type, both of which the caller supplies.
+ *
+ * Every upload also starts its Kannada copy, at the front of the translation
+ * queue; students are offered it the moment it is complete.
  */
 
 /** Resolves the target and its current file, for either kind of owner. */
@@ -78,6 +83,11 @@ export const POST = route(async ({ request }) => {
 
   const fileName = await storeTestSynopsis(slug, buffer);
   await setFileName(kind, id, fileName);
+  // A replacement keeps its name, so the old copy no longer matches and is
+  // never shown; it is cleared now rather than left on disk until the new
+  // one is made.
+  await removeKannadaDocument(fileName);
+  translationWorker().request([`doc:${fileName}`], { front: true });
 
   return {
     data: { fileName, sizeBytes: buffer.byteLength },
@@ -101,7 +111,10 @@ export const DELETE = route(async ({ request }) => {
   // seeing a document the admin has withdrawn, which is the point of the
   // request; an orphaned file is harmless by comparison.
   await setFileName(kind, id, null);
-  if (current) await deleteSynopsisFile(current);
+  if (current) {
+    await deleteSynopsisFile(current);
+    await removeKannadaDocument(current);
+  }
 
   return { data: { removed: Boolean(current) }, message: 'Analysis PDF removed.' };
 });

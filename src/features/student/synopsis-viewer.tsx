@@ -18,7 +18,35 @@ import { AlertCircle, Loader2 } from 'lucide-react';
  * page or pull the file from the network tab, which is true of anything a
  * browser can display.
  */
-export function SynopsisViewer({ src, title }: { src: string; title: string }) {
+const VIEWER_TEXT = {
+  en: {
+    loading: (done: number, total: number) => `Loading the analysis${total > 0 ? ` — page ${done} of ${total}` : '…'}`,
+    pages: (done: number, total: number) => `${done} of ${total} pages`,
+    noAccess: 'You do not have access to this analysis yet.',
+    failed: (status: number) => `The document could not be loaded (HTTP ${status}).`,
+    noCanvas: 'This browser could not create a canvas to draw on.',
+    notShown: 'The document could not be displayed.',
+  },
+  kn: {
+    loading: (done: number, total: number) => `ವಿಶ್ಲೇಷಣೆ ತೆರೆಯುತ್ತಿದೆ${total > 0 ? ` — ಪುಟ ${done} / ${total}` : '…'}`,
+    pages: (done: number, total: number) => `ಪುಟ ${done} / ${total}`,
+    noAccess: 'ಈ ವಿಶ್ಲೇಷಣೆಯನ್ನು ನೋಡಲು ನಿಮಗೆ ಇನ್ನೂ ಅನುಮತಿ ಇಲ್ಲ.',
+    failed: (status: number) => `ದಾಖಲೆಯನ್ನು ತೆರೆಯಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ (HTTP ${status}).`,
+    noCanvas: 'ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ದಾಖಲೆಯನ್ನು ತೋರಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ.',
+    notShown: 'ದಾಖಲೆಯನ್ನು ತೋರಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.',
+  },
+} as const;
+
+export function SynopsisViewer({
+  src,
+  title,
+  language = 'en',
+}: {
+  src: string;
+  title: string;
+  language?: 'en' | 'kn';
+}) {
+  const text = VIEWER_TEXT[language];
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [status, setStatus] = React.useState<'loading' | 'ready' | 'error'>('loading');
   const [message, setMessage] = React.useState('');
@@ -37,11 +65,7 @@ export function SynopsisViewer({ src, title }: { src: string; title: string }) {
 
         const response = await fetch(src, { credentials: 'same-origin' });
         if (!response.ok) {
-          throw new Error(
-            response.status === 403
-              ? 'You do not have access to this analysis yet.'
-              : `The document could not be loaded (HTTP ${response.status}).`,
-          );
+          throw new Error(response.status === 403 ? text.noAccess : text.failed(response.status));
         }
 
         const data = new Uint8Array(await response.arrayBuffer());
@@ -77,7 +101,7 @@ export function SynopsisViewer({ src, title }: { src: string; title: string }) {
           canvas.setAttribute('aria-label', `${title} — page ${n} of ${pdf.numPages}`);
 
           const context = canvas.getContext('2d');
-          if (!context) throw new Error('This browser could not create a canvas to draw on.');
+          if (!context) throw new Error(text.noCanvas);
 
           container.append(canvas);
           canvases.push(canvas);
@@ -91,7 +115,7 @@ export function SynopsisViewer({ src, title }: { src: string; title: string }) {
         if (!cancelled) setStatus('ready');
       } catch (error) {
         if (cancelled) return;
-        setMessage(error instanceof Error ? error.message : 'The document could not be displayed.');
+        setMessage(error instanceof Error ? error.message : text.notShown);
         setStatus('error');
       }
     }
@@ -101,7 +125,7 @@ export function SynopsisViewer({ src, title }: { src: string; title: string }) {
       cancelled = true;
       for (const canvas of canvases) canvas.remove();
     };
-  }, [src, title]);
+  }, [src, title, text]);
 
   // Discourage the obvious ways of taking a copy. Deterrence, not protection.
   React.useEffect(() => {
@@ -124,10 +148,7 @@ export function SynopsisViewer({ src, title }: { src: string; title: string }) {
       {status === 'loading' && (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
           <Loader2 className="size-6 animate-spin text-primary" aria-hidden="true" />
-          <p className="text-sm text-muted-foreground">
-            Loading the analysis
-            {progress.total > 0 ? ` — page ${progress.done} of ${progress.total}` : '…'}
-          </p>
+          <p className="text-sm text-muted-foreground">{text.loading(progress.done, progress.total)}</p>
         </div>
       )}
 
@@ -146,9 +167,7 @@ export function SynopsisViewer({ src, title }: { src: string; title: string }) {
       />
 
       {status === 'ready' && progress.total > 0 && (
-        <p className="mt-3 text-center text-xs text-muted-foreground">
-          {progress.done} of {progress.total} pages
-        </p>
+        <p className="mt-3 text-center text-xs text-muted-foreground">{text.pages(progress.done, progress.total)}</p>
       )}
     </div>
   );

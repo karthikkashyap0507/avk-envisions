@@ -94,24 +94,17 @@ function hasSolution(question: QuestionSource): boolean {
 // Sentence memory
 // ---------------------------------------------------------------------------
 
-function normalise(sentence: string): string {
+export function normalise(sentence: string): string {
   return sentence.replace(/\s+/g, ' ').trim();
 }
 
 /** Real Kannada came back, not an echo of the English or an empty string. */
-function looksKannada(text: string): boolean {
+export function looksKannada(text: string): boolean {
   return /[ಀ-೿]/.test(text);
 }
 
-/**
- * Translations for these sentences, reusing every one already made.
- *
- * Keyed by the normalised sentence, and complete whenever it returns: a
- * sentence the engine answered without any Kannada keeps its English and is
- * not stored, so it is asked for again next time instead of being cached as
- * permanently "translated". Throws only if the engine is unreachable.
- */
-async function translateWithMemory(sentences: string[]): Promise<Map<string, string>> {
+/** What the memory already holds for these sentences, without asking the engine. */
+export async function rememberedTranslations(sentences: string[]): Promise<Map<string, string>> {
   const unique = [...new Set(sentences.map(normalise))].filter(Boolean);
   const keyOf = new Map(unique.map((s) => [fingerprint(s), s]));
   const known = new Map<string, string>();
@@ -124,6 +117,21 @@ async function translateWithMemory(sentences: string[]): Promise<Map<string, str
     });
     for (const row of rows) known.set(keyOf.get(row.sourceHash)!, row.target);
   }
+  return known;
+}
+
+/**
+ * Translations for these sentences, reusing every one already made.
+ *
+ * Keyed by the normalised sentence, and complete whenever it returns. A
+ * sentence the engine answers without any Kannada - a bare name, a code -
+ * keeps its English, and that answer is remembered too: the engine gives
+ * the same one every time, and asking again would cost the capped server
+ * minutes for nothing. Throws only if the engine is unreachable.
+ */
+export async function translateWithMemory(sentences: string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(sentences.map(normalise))].filter(Boolean);
+  const known = await rememberedTranslations(unique);
 
   // One small batch at a time, each remembered the moment it comes back. On
   // the capped server a long solution is minutes of work; if the engine
@@ -134,14 +142,13 @@ async function translateWithMemory(sentences: string[]): Promise<Map<string, str
     const batch = missing.slice(start, start + ENGINE_BATCH);
     const translated = await translateSentences(batch);
     for (const [i, source] of batch.entries()) {
-      const target = translated[i]?.trim() ?? '';
-      if (!looksKannada(target)) {
-        // The engine answered but not in Kannada - a bare name or a code, or
-        // a sentence it could not handle. Keep the English for this question
-        // so it completes, but do not remember it as translated.
+      const answer = translated[i]?.trim() ?? '';
+      // Nothing at all is a failure, not an answer: asked for again next time.
+      if (!answer) {
         known.set(source, source);
         continue;
       }
+      const target = looksKannada(answer) ? answer : source;
       known.set(source, target);
       await db.translationMemory
         .upsert({

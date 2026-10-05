@@ -101,6 +101,11 @@ _LABEL = regex.compile(
     r"(?:"
     r"(?:[B-HJ-Z]|II|III|IV|VI|VII|VIII|IX|XI|XII)(?![\w'’-]|\.\w)"
     r"|(?:A|I)(?=\s*(?:,|/|\)|\s(?:and|or|only|nor|are|is|were|was)\b|$))"
+    # "A-1, B-2" and "I-D, II-B": a pairing in a match-the-following code.
+    r"|(?:A|I)(?=[-–]\s?(?:\d|[IVX]{1,4}\b|[A-H]\b))"
+    # "Only I true", "I false": a statement number, never the pronoun. Not for
+    # A, where "A true statement" is the article.
+    r"|I(?=\s(?:true|false|correct|incorrect|right|wrong|alone)\b)"
     r"|(?<=\()(?:A|I)(?![\w'’-])"
     # Lowercase list markers inside a line - "... in 2014? i. Hudhud ii. ..."
     # and "(a)" - which the engine otherwise drops.

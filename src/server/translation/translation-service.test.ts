@@ -143,12 +143,18 @@ describe('translateQuestions', () => {
     expect(engine.calls).toEqual([]);
   });
 
-  it('keeps English for a sentence the engine could not put into Kannada, without remembering it', async () => {
+  it('keeps English for a sentence the engine could not put into Kannada, and does not ask twice', async () => {
     engine.refuse.add('A only');
     store.questions.push(question('q1'));
     await translateQuestions(['q1'], 'stem');
     expect((await readQuestionTranslations(['q1'], ['stem'])).stems.q1!.options['q1-o1']).toBe('A only');
-    expect(store.memory.some((m) => m.source === 'A only')).toBe(false);
+    // The same answer would come back every time: remembered as English.
+    expect(store.memory.find((m) => m.source === 'A only')?.target).toBe('A only');
+
+    store.questions.push(question('q2'));
+    engine.calls = [];
+    await translateQuestions(['q2'], 'stem');
+    expect(engine.calls.flat()).not.toContain('A only');
   });
 
   it('asks the engine in small batches', async () => {

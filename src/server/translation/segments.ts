@@ -29,6 +29,8 @@ const ABBREVIATIONS = new Set(
     'pp', 'approx', 'jan', 'feb', 'mar', 'apr', 'jun', 'jul', 'aug', 'sep', 'sept', 'oct',
     'nov', 'dec', 'rs', 'hon', 'smt', 'shri', 'sri', 'gen', 'col', 'lt', 'capt', 'maj', 'rev',
     'mt', 'ft', 'est', 'cf', 'al', 'ibid', 'op', 'cit', 'amdt', 'cl', 'sch', 'para',
+    // "NALSA v. Union of India": the v of a case name.
+    'v',
   ],
 );
 
@@ -57,6 +59,30 @@ function splitLong(sentence: string): string[] {
 }
 
 /**
+ * "A. It was banned in 1890." in the middle of a paragraph: the letter labels a
+ * statement and is kept as it is, as at the start of a line - the engine
+ * would turn "A." into a Kannada letter. Not initials ("B. R. Ambedkar").
+ */
+const SENTENCE_MARKER = /^((?:[A-H]|[a-h]|\d{1,2}|I{1,3}|IV|VI{0,3}|IX)[.)]\s+)(?=["'‘“(]?[A-Z])(?![A-Z]\.\s)/;
+
+function pushSentence(pieces: Piece[], sentence: string) {
+  // "II.", "2.", "Q21–40": a piece the splitter cut off with nothing to translate.
+  if (!isTranslatable(sentence)) {
+    pieces.push({ raw: sentence });
+    return;
+  }
+  const marker = sentence.match(SENTENCE_MARKER)?.[1];
+  if (marker && sentence.length > marker.length) {
+    pieces.push({ raw: marker });
+    sentence = sentence.slice(marker.length);
+  }
+  for (const [i, part] of splitLong(sentence).entries()) {
+    if (i > 0) pieces.push({ raw: ' ' });
+    pieces.push({ sentence: part });
+  }
+}
+
+/**
  * Splits prose into sentences, keeping the spaces between them as raw pieces.
  *
  * A full stop ends a sentence only when the next word starts a new one, and
@@ -79,7 +105,7 @@ export function splitSentences(text: string): Piece[] {
     if (match[1]!.startsWith('.') && (ABBREVIATIONS.has(lastWord) || isInitial || isDotted)) continue;
 
     const sentence = text.slice(start, end).trim();
-    if (sentence) for (const part of splitLong(sentence)) pieces.push({ sentence: part });
+    if (sentence) pushSentence(pieces, sentence);
     pieces.push({ raw: match[2]! });
     start = end + match[2]!.length;
   }
@@ -89,10 +115,7 @@ export function splitSentences(text: string): Piece[] {
   if (trimmed) {
     const lead = tail.slice(0, tail.indexOf(trimmed));
     if (lead) pieces.push({ raw: lead });
-    for (const [i, part] of splitLong(trimmed).entries()) {
-      if (i > 0) pieces.push({ raw: ' ' });
-      pieces.push({ sentence: part });
-    }
+    pushSentence(pieces, trimmed);
     const trail = tail.slice(tail.indexOf(trimmed) + trimmed.length);
     if (trail) pieces.push({ raw: trail });
   } else if (tail) {

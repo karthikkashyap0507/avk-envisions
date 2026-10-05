@@ -6,3 +6,13 @@ tokenizers==0.21.0
 numpy==1.26.4
 regex==2024.11.6
 sacremoses==0.1.1
+
+# pdf_kannada.py, the Kannada copies of the analysis PDFs: PDFium reads and
+# edits the pages (BSD/Apache), HarfBuzz shapes the Kannada (MIT) and fpdf2
+# writes it (LGPL), with fontTools, Pillow and defusedxml under it.
+pypdfium2==5.3.0
+uharfbuzz==0.56.2
+fpdf2==2.8.9
+fonttools==4.65.0
+pillow==12.3.0
+defusedxml==0.7.1

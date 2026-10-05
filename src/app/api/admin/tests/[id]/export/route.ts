@@ -3,6 +3,8 @@ import path from 'node:path';
 
 import { requireAdmin } from '@/server/auth/guards';
 import { db } from '@/server/db';
+import { readQuestionTranslations, readTestTranslation } from '@/server/translation/translation-service';
+import { translationWorker } from '@/server/translation/worker';
 
 /**
  * The AVK Envisions mark, inlined as a data URI.
@@ -27,6 +29,57 @@ function logo(): string | null {
 }
 
 /**
+ * Noto Sans Kannada (SIL Open Font License), inlined for the same reasons as
+ * the logo: there before the print dialogue opens, and still there in a page
+ * saved to disk. Only a Kannada export carries it.
+ */
+let kannadaFontCss: string | undefined;
+function kannadaFont(): string {
+  if (kannadaFontCss !== undefined) return kannadaFontCss;
+  try {
+    const face = (file: string, weight: number) =>
+      `@font-face { font-family: 'Noto Sans Kannada'; font-weight: ${weight}; font-display: block;` +
+      ` src: url(data:font/ttf;base64,${readFileSync(path.join(process.cwd(), 'translator', 'fonts', file)).toString('base64')}) format('truetype'); }`;
+    kannadaFontCss = face('NotoSansKannada-Regular.ttf', 400) + face('NotoSansKannada-Bold.ttf', 700);
+  } catch {
+    // The reader's own Kannada font is used instead (every phone has one).
+    kannadaFontCss = '';
+  }
+  return kannadaFontCss;
+}
+
+/** What the page itself says, in each language. */
+const TEXT = {
+  en: {
+    summary: (questions: number, marks: number, minutes: number) =>
+      `${questions} question${questions === 1 ? '' : 's'} · ${marks} marks · ${minutes} minutes`,
+    marks: (n: number) => `${n} mark${n === 1 ? '' : 's'}`,
+    correct: 'correct',
+    noKey: 'No correct option is set.',
+    explanation: 'Explanation',
+    download: 'Download PDF',
+    staff: 'The answer key and explanations are included — this is a staff document.',
+    empty: 'This paper has no questions yet.',
+    untranslated: (n: number) => '',
+  },
+  kn: {
+    summary: (questions: number, marks: number, minutes: number) =>
+      `${questions} ಪ್ರಶ್ನೆಗಳು · ${marks} ಅಂಕಗಳು · ${minutes} ನಿಮಿಷಗಳು`,
+    marks: (n: number) => `${n} ಅಂಕ`,
+    correct: 'ಸರಿ ಉತ್ತರ',
+    noKey: 'ಸರಿಯಾದ ಆಯ್ಕೆಯನ್ನು ಗುರುತಿಸಿಲ್ಲ.',
+    explanation: 'ವಿವರಣೆ',
+    download: 'PDF ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ',
+    staff: 'ಉತ್ತರಗಳು ಮತ್ತು ವಿವರಣೆಗಳು ಸೇರಿವೆ — ಇದು ಸಿಬ್ಬಂದಿಯ ದಾಖಲೆ.',
+    empty: 'ಈ ಪತ್ರಿಕೆಯಲ್ಲಿ ಇನ್ನೂ ಪ್ರಶ್ನೆಗಳಿಲ್ಲ.',
+    untranslated: (n: number) =>
+      n === 0
+        ? ''
+        : `${n} questions are still being translated and print in English for now; they have been moved to the front of the queue.`,
+  },
+} as const;
+
+/**
  * GET /api/admin/tests/[id]/export — one paper as a printable document.
  *
  * Returns HTML rather than a generated PDF. Every browser prints to PDF, and
@@ -35,6 +88,10 @@ function logo(): string | null {
  * adds no dependency. Opening it and pressing print is the whole workflow.
  *
  * Admin only: it prints the answer key beside every question.
+ *
+ * `?lang=kn` prints the paper in Kannada, from the same translations students
+ * take the test in: question, options and explanation for every question
+ * whose translation is ready, with a note of any that are not yet.
  */
 export const dynamic = 'force-dynamic';
 
@@ -99,6 +156,8 @@ export async function GET(
   }
 
   const { id: testId } = await params;
+  const language = new URL(request.url).searchParams.get('lang') === 'kn' ? 'kn' : 'en';
+  const t = TEXT[language];
 
   // Behind Caddy the request URL is the internal 127.0.0.1:3000 one, so the
   // forwarded headers are what give the address a printed page can actually
@@ -122,6 +181,7 @@ export async function GET(
           marks: true,
           question: {
             select: {
+              id: true,
               code: true,
               body: true,
               imageUrl: true,
@@ -131,7 +191,7 @@ export async function GET(
               // A proof copy is better with no label than a wrong one.
               options: {
                 orderBy: { sortOrder: 'asc' },
-                select: { label: true, body: true, imageUrl: true, isCorrect: true },
+                select: { id: true, label: true, body: true, imageUrl: true, isCorrect: true },
               },
             },
           },
@@ -142,6 +202,24 @@ export async function GET(
 
   if (!test) return new Response('Test not found.', { status: 404 });
 
+  // Kannada, where it is ready. Whatever is not is asked for at the front of
+  // the queue, so the next print has it.
+  const questionIds = test.questions.map((row) => row.question.id);
+  const kannada =
+    language === 'kn' ? await readQuestionTranslations(questionIds, ['stem', 'solution']) : null;
+  const kannadaTest = language === 'kn' ? await readTestTranslation(testId) : null;
+  if (kannada) {
+    translationWorker().request(
+      [
+        ...kannada.pending.stem.map((id) => `stem:${id}` as const),
+        ...kannada.pending.solution.map((id) => `solution:${id}` as const),
+        ...(kannadaTest ? [] : [`test:${testId}` as const]),
+      ],
+      { front: true },
+    );
+  }
+  const title = kannadaTest?.title ?? test.title;
+
   // Numbered by position, counted from one — never from `sortOrder`.
   //
   // That column is an ordering key, not a question number: it carries whatever
@@ -151,12 +229,14 @@ export async function GET(
   const rows = test.questions
     .map((row, index) => {
       const q = row.question;
+      const stem = kannada?.stems[q.id];
+      const solution = kannada?.solutions[q.id];
       const options = q.options
         .map(
           (option) =>
             `<li class="${option.isCorrect ? 'right' : ''}">` +
-            `<b>${escape(option.label)}.</b> ${escape(option.body)}` +
-            `${option.isCorrect ? ' <span class="key">correct</span>' : ''}` +
+            `<b>${escape(option.label)}.</b> ${escape(stem?.options[option.id] ?? option.body)}` +
+            `${option.isCorrect ? ` <span class="key">${t.correct}</span>` : ''}` +
             `${image(option.imageUrl, origin, `Figure for option ${option.label}`)}</li>`,
         )
         .join('');
@@ -165,22 +245,23 @@ export async function GET(
       // were finished — that is exactly what someone proof-reading needs to
       // catch.
       const unkeyed = q.options.every((option) => !option.isCorrect)
-        ? '<p class="warn">No correct option is set.</p>'
+        ? `<p class="warn">${t.noKey}</p>`
         : '';
+      const explanation = solution?.explanation ?? q.explanation;
 
       return `
         <article>
           <header>
             <span class="num">${index + 1}</span>
-            <span class="meta">${escape(q.code ?? '')} · ${row.marks} mark${row.marks === 1 ? '' : 's'}</span>
+            <span class="meta">${escape(q.code ?? '')} · ${t.marks(row.marks)}</span>
           </header>
-          <div class="stem">${paragraphs(q.body)}</div>
+          <div class="stem">${paragraphs(stem?.body ?? q.body)}</div>
           ${image(q.imageUrl, origin, `Figure for question ${index + 1}`)}
           <ol class="options">${options}</ol>
           ${unkeyed}
           ${
-            q.explanation
-              ? `<div class="explanation"><b>Explanation</b>${paragraphs(q.explanation)}</div>`
+            explanation
+              ? `<div class="explanation"><b>${t.explanation}</b>${paragraphs(explanation)}</div>`
               : ''
           }
         </article>`;
@@ -188,11 +269,12 @@ export async function GET(
     .join('');
 
   const html = `<!doctype html>
-<html lang="en">
+<html lang="${language}">
 <head>
 <meta charset="utf-8">
-<title>${escape(test.title)}</title>
+<title>${escape(title)}</title>
 <style>
+  ${language === 'kn' ? kannadaFont() : ''}
   :root { color-scheme: light; }
   * { box-sizing: border-box; }
   body {
@@ -200,6 +282,12 @@ export async function GET(
     font: 12pt/1.5 Georgia, 'Times New Roman', serif; color: #111;
     max-width: 60rem;
   }
+  /* Kannada needs a Kannada font, and a little more height between lines
+     for the vowel signs above and the consonants below. */
+  html[lang="kn"] body { font-family: 'Noto Sans Kannada', 'Nirmala UI', 'Kannada Sangam MN', Tunga, sans-serif;
+                         line-height: 1.65; }
+  .toolbar a { color: #4338ca; font-weight: 600; text-decoration: none; }
+  .toolbar a[aria-current] { color: #111; text-decoration: underline; }
   /* The letterhead: mark on the left, the paper's title beside it, and a
      gold rule taken from the logo underneath. Sized in mm so it prints the
      same on A4 and Letter whatever the screen it was opened on. */
@@ -278,18 +366,21 @@ export async function GET(
     ${logo() ? `<img src="${logo()}" alt="AVK Envisions">` : ''}
     <div class="titles">
       <p class="brand">AVK Envisions · KAS Prelims</p>
-      <h1>${escape(test.title)}</h1>
+      <h1>${escape(title)}</h1>
       <p class="sub">
-        ${test.totalQuestions} question${test.totalQuestions === 1 ? '' : 's'} ·
-        ${test.totalMarks} marks · ${test.durationMinutes} minutes · ${escape(test.slug)}
+        ${t.summary(test.totalQuestions, test.totalMarks, test.durationMinutes)} · ${escape(test.slug)}
       </p>
     </div>
   </header>
   <div class="toolbar">
-    <button type="button" onclick="printWhenReady()">Download PDF</button>
-    <span>The answer key and explanations are included — this is a staff document.</span>
+    <button type="button" onclick="printWhenReady()">${t.download}</button>
+    <span>${t.staff}${kannada ? ` ${t.untranslated(kannada.pending.stem.length)}` : ''}</span>
+    <span lang="en">
+      <a href="?"${language === 'en' ? ' aria-current="true"' : ''}>English</a> ·
+      <a href="?lang=kn" lang="kn"${language === 'kn' ? ' aria-current="true"' : ''}>ಕನ್ನಡ</a>
+    </span>
   </div>
-  ${rows || '<p>This paper has no questions yet.</p>'}
+  ${rows || `<p>${t.empty}</p>`}
   <script>
     /*
      * Printing before the figures have decoded is what leaves gaps in the PDF:
@@ -300,6 +391,9 @@ export async function GET(
      * the paper that single figure, not the whole print.
      */
     async function printWhenReady() {
+      // The Kannada font too: printed before it has loaded, the text would
+      // come out in whatever font the browser had to hand.
+      if (document.fonts && document.fonts.ready) await document.fonts.ready;
       const pending = Array.from(document.images).filter((img) => !img.complete);
 
       if (pending.length > 0) {

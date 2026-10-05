@@ -18,6 +18,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
 import { formatDate, formatNumber, formatPaise, formatRelativeTime } from '@/lib/utils';
 import { can, enforceAdminArea } from '@/server/auth/guards';
+import { documentCoverage } from '@/server/translation/document-translation';
 import { engineAvailable } from '@/server/translation/engine-client';
 import { translationCoverage } from '@/server/translation/translation-service';
 import { translationWorker } from '@/server/translation/worker';
@@ -38,12 +39,13 @@ export const dynamic = 'force-dynamic';
 export default async function AdminDashboardPage() {
   const user = await enforceAdminArea('/admin');
 
-  const [overview, activity, incomplete, kannadaUp, kannada] = await Promise.all([
+  const [overview, activity, incomplete, kannadaUp, kannada, kannadaPdfs] = await Promise.all([
     getAdminOverview(),
     getRecentActivity(),
     getIncompleteTests(),
     engineAvailable(),
     translationCoverage(),
+    documentCoverage(),
   ]);
   const kannadaWorker = translationWorker().status();
 
@@ -293,7 +295,7 @@ export default async function AdminDashboardPage() {
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {kannadaUp
-                ? 'Students can take any test in Kannada. New and edited questions are translated automatically.'
+                ? 'Students can take any test, and read any analysis PDF, in Kannada. New and edited questions, and newly uploaded analysis PDFs, are translated automatically.'
                 : 'Students see tests in English until the engine starts. It is installed and started by the deploy.'}
             </p>
             {/* Whether it is moving, not just whether it is up: a stalled
@@ -309,7 +311,7 @@ export default async function AdminDashboardPage() {
               <p className="mt-0.5 text-xs text-warning">Last error: {kannadaWorker.lastError}</p>
             )}
           </div>
-          <dl className="grid shrink-0 grid-cols-2 gap-6 text-sm">
+          <dl className="grid shrink-0 grid-cols-3 gap-6 text-sm">
             <div>
               <dt className="text-xs text-muted-foreground">Questions</dt>
               <dd className="mt-0.5 font-semibold tabular-nums">
@@ -320,6 +322,12 @@ export default async function AdminDashboardPage() {
               <dt className="text-xs text-muted-foreground">Solutions</dt>
               <dd className="mt-0.5 font-semibold tabular-nums">
                 {kannada.solutions}/{kannada.withSolution}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Analysis PDFs</dt>
+              <dd className="mt-0.5 font-semibold tabular-nums">
+                {kannadaPdfs.ready}/{kannadaPdfs.total}
               </dd>
             </div>
           </dl>

@@ -71,6 +71,10 @@ const serverSchema = z
     // Whether idle time is spent translating the question bank ahead of
     // students asking for it. "off" still translates on demand.
     TRANSLATION_BACKGROUND: z.enum(['on', 'off']).default('on'),
+    // The Python that runs translator/pdf_kannada.py, which makes the Kannada
+    // copies of the analysis PDFs. Empty means the translation engine's own
+    // environment on the server, or the system Python elsewhere.
+    TRANSLATOR_PYTHON: z.string().optional().default(''),
 
     SENTRY_DSN: z.string().optional().default(''),
     LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),

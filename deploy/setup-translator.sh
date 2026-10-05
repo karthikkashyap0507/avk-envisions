@@ -13,7 +13,10 @@
 #   uv           a single binary that builds the Python environment, so the
 #                machine needs no pip or venv packages from apt
 #   /opt/avk-translator/venv
-#                Python packages from translator/requirements.txt, exactly
+#                Python packages from translator/requirements.txt, exactly -
+#                for the engine, and for translator/pdf_kannada.py, which the
+#                website runs from this same environment to make the Kannada
+#                copies of the analysis PDFs
 #   $DATA_DIR/models/indictrans2-en-indic-200m-int8
 #                the open-source model (MIT), pinned to one revision and
 #                checked file by file against known SHA-256 sums

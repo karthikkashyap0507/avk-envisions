@@ -3,6 +3,7 @@ import { Readable } from 'node:stream';
 
 import { requireUser } from '@/server/auth/guards';
 import { checkTestSynopsisAccess, openSynopsis } from '@/server/services/synopsis-service';
+import { openKannadaDocument } from '@/server/translation/document-translation';
 
 /**
  * GET /api/synopsis/test/[testId] — streams one test's analysis PDF.
@@ -15,10 +16,14 @@ import { checkTestSynopsisAccess, openSynopsis } from '@/server/services/synopsi
  * treating it as a download and stops intermediaries caching a document that
  * is behind a paywall — but note it does not, and cannot, prevent a determined
  * viewer from saving the file. Anything a browser can render, it can keep.
+ *
+ * `?lang=kn` serves the Kannada copy instead, under exactly the same checks.
+ * There is no Kannada copy to serve until it is complete and current, and the
+ * page only offers the switch when there is one.
  */
 export const dynamic = 'force-dynamic';
 
-export async function GET(_request: Request, ctx: { params: Promise<{ testId: string }> }) {
+export async function GET(request: Request, ctx: { params: Promise<{ testId: string }> }) {
   const { testId } = await ctx.params;
 
   let user;
@@ -40,7 +45,12 @@ export async function GET(_request: Request, ctx: { params: Promise<{ testId: st
     return new Response(message, { status: 403 });
   }
 
-  const { stream, size } = await openSynopsis(access.fileName);
+  const kannada = new URL(request.url).searchParams.get('lang') === 'kn';
+  const opened = kannada ? await openKannadaDocument(access.fileName) : await openSynopsis(access.fileName);
+  if (!opened) {
+    return new Response('The Kannada version of this analysis is not available.', { status: 404 });
+  }
+  const { stream, size } = opened;
 
   return new Response(Readable.toWeb(stream) as NodeWebStream as ReadableStream, {
     headers: {
@@ -48,7 +58,7 @@ export async function GET(_request: Request, ctx: { params: Promise<{ testId: st
       'Content-Length': String(size),
       // `inline` with a generic name: the viewer shows it, and a save keeps a
       // name that does not advertise the original document.
-      'Content-Disposition': 'inline; filename="analysis.pdf"',
+      'Content-Disposition': `inline; filename="${kannada ? 'analysis-kannada.pdf' : 'analysis.pdf'}"`,
       'Cache-Control': 'private, no-store, max-age=0',
       'X-Content-Type-Options': 'nosniff',
       // Only this site may frame it.

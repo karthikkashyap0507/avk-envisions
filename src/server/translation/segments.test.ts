@@ -29,6 +29,18 @@ describe('isTranslatable', () => {
 describe('splitSentences', () => {
   const sentences = (text: string) => sentencesOf(splitSentences(text));
 
+  it('leaves a cut-off piece with no words in it alone', () => {
+    const pieces = splitSentences('Statement I is correct. II. Both are true.');
+    expect(sentencesOf(pieces)).toEqual(['Statement I is correct.', 'Both are true.']);
+    expect(render(pieces, mark)).toBe('«Statement I is correct.» II. «Both are true.»');
+  });
+
+  it('keeps a statement letter in mid-paragraph out of the sentence, but not an initial', () => {
+    const pieces = splitSentences('Consider this. A. It is a garden. B. R. Ambedkar wrote it.');
+    expect(sentencesOf(pieces)).toEqual(['Consider this.', 'It is a garden.', 'B. R. Ambedkar wrote it.']);
+    expect(render(pieces, mark)).toBe('«Consider this.» A. «It is a garden.» «B. R. Ambedkar wrote it.»');
+  });
+
   it('splits at full stops before a new sentence', () => {
     expect(sentences('The House met. It passed the bill. Then it rose.')).toEqual([
       'The House met.',

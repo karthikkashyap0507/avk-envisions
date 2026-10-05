@@ -6,11 +6,13 @@ import { ArrowLeft, FileText, Lock, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/states';
-import { SynopsisViewer } from '@/features/student/synopsis-viewer';
+import { AnalysisDocument } from '@/features/student/analysis-document';
 import { formatPaise } from '@/lib/utils';
 import { currentUser, enforceStudent } from '@/server/auth/guards';
 import { db } from '@/server/db';
 import { checkTestSynopsisAccess } from '@/server/services/synopsis-service';
+import { hasKannadaDocument } from '@/server/translation/document-translation';
+import { readTestTranslation } from '@/server/translation/translation-service';
 
 export const metadata: Metadata = {
   title: 'Paper analysis',
@@ -24,13 +26,18 @@ export const dynamic = 'force-dynamic';
  *
  * Every outcome other than "you may read this" is rendered as an explanation of
  * what is missing, rather than a 404 that leaves the student guessing.
+ *
+ * `?lang=kn` opens the Kannada copy, when there is one.
  */
 export default async function TestSynopsisPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ testId: string }>;
+  searchParams: Promise<{ lang?: string }>;
 }) {
   const { testId } = await params;
+  const { lang } = await searchParams;
 
   // A signed-out visitor gets the guest route — name and phone — rather than a
   // login wall. The whole previous-year section is open on those terms, and the
@@ -122,19 +129,31 @@ export default async function TestSynopsisPage({
     );
   }
 
+  const [kannada, kannadaTest] = await Promise.all([
+    hasKannadaDocument(access.fileName),
+    readTestTranslation(testId),
+  ]);
+
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
-      {back}
-
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">{access.seriesName} — Analysis</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Question-wise analysis: answer, reasoning, core concept and future angle for all 100
-          questions. Reading only — this document is not available for download.
-        </p>
-      </header>
-
-      <SynopsisViewer src={`/api/synopsis/test/${testId}`} title={`${access.seriesName} analysis`} />
-    </div>
+    <AnalysisDocument
+      src={`/api/synopsis/test/${testId}`}
+      backHref={`/test/${testId}`}
+      kannada={kannada}
+      initialLanguage={lang === 'kn' ? 'kn' : lang === 'en' ? 'en' : null}
+      text={{
+        en: {
+          title: `${access.seriesName} — Analysis`,
+          description:
+            'Question-wise analysis: answer, reasoning, core concept and future angle for all 100 questions. Reading only — this document is not available for download.',
+          back: 'Back to the test',
+        },
+        kn: {
+          title: `${kannadaTest?.title ?? access.seriesName} — ವಿಶ್ಲೇಷಣೆ`,
+          description:
+            'ಪ್ರಶ್ನಾವಾರು ವಿಶ್ಲೇಷಣೆ: ಎಲ್ಲಾ 100 ಪ್ರಶ್ನೆಗಳ ಉತ್ತರ, ತರ್ಕ, ಮೂಲ ಪರಿಕಲ್ಪನೆ ಮತ್ತು ಭವಿಷ್ಯದ ದೃಷ್ಟಿಕೋನ. ಓದಲು ಮಾತ್ರ — ಈ ದಾಖಲೆಯನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ.',
+          back: 'ಪರೀಕ್ಷೆಗೆ ಹಿಂತಿರುಗಿ',
+        },
+      }}
+    />
   );
 }

@@ -2,11 +2,72 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { FileText, Loader2, Trash2, Upload } from 'lucide-react';
+import { ExternalLink, FileText, Loader2, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ApiClientError, api } from '@/lib/api-client';
+
+type KannadaState =
+  | { state: 'ready'; preview: string }
+  | { state: 'pending'; done: number; total: number; preview: string }
+  | { state: 'missing' };
+
+/**
+ * The Kannada copy of one analysis PDF: made automatically from the English,
+ * so all an admin needs to see is whether it is ready - and a way to look.
+ * While it is being made the row checks back every few seconds.
+ */
+function KannadaCopy({ kind, id, version }: { kind: 'test' | 'series'; id: string; version: string }) {
+  const [state, setState] = React.useState<KannadaState | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    async function check() {
+      try {
+        const next = await api.get<KannadaState>(`/api/admin/synopsis/kannada?kind=${kind}&id=${id}`);
+        if (cancelled) return;
+        setState(next);
+        if (next.state === 'pending') timer = setTimeout(check, 8_000);
+      } catch {
+        if (!cancelled) timer = setTimeout(check, 30_000);
+      }
+    }
+    void check();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [kind, id, version]);
+
+  if (!state || state.state === 'missing') return null;
+  if (state.state === 'ready') {
+    return (
+      <span className="flex items-center gap-1.5">
+        <Badge variant="success" size="sm">
+          ಕನ್ನಡ ready
+        </Badge>
+        <a
+          href={state.preview}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+        >
+          Preview
+          <ExternalLink className="size-3" aria-hidden="true" />
+        </a>
+      </span>
+    );
+  }
+  const percent = state.total > 0 ? Math.floor((state.done / state.total) * 100) : null;
+  return (
+    <Badge variant="warning" size="sm" title="Made automatically from the English. Students see the ಕನ್ನಡ button once it is ready.">
+      ಕನ್ನಡ {percent === null ? 'queued' : `translating · ${percent}%`}
+    </Badge>
+  );
+}
 
 /**
  * Upload or remove one analysis PDF.
@@ -109,6 +170,8 @@ export function SynopsisManager({
       ) : (
         <span className="text-xs text-muted-foreground">No analysis PDF</span>
       )}
+
+      {fileName && present && <KannadaCopy kind={kind} id={id} version={`${fileName}:${sizeBytes}`} />}
 
       <Button
         size="sm"

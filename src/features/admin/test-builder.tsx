@@ -581,6 +581,21 @@ export function TestBuilder({ exams, series, initial, attached = [], preset }: B
                     </a>
                   </Button>
                 )}
+                {/* The same paper in Kannada, from the translations students
+                    take the test in. */}
+                {isEdit && rows.length > 0 && (
+                  <Button asChild size="sm" variant="outline">
+                    <a
+                      href={`/api/admin/tests/${draft.id}/export?lang=kn`}
+                      target="_blank"
+                      rel="noreferrer"
+                      lang="kn"
+                    >
+                      <FileDown aria-hidden="true" />
+                      ಕನ್ನಡ PDF
+                    </a>
+                  </Button>
+                )}
 
                 {/* Emptying the whole paper, for when it is being rebuilt from
                     a corrected document. Removing a hundred questions one at a

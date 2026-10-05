@@ -260,7 +260,7 @@ export default async function ResultPage({
                     backwards from the result they are already looking at. */}
                 {hasSynopsis && (
                   <Button asChild size="sm" variant="outline">
-                    <Link href={`/synopsis/test/${result.test.id}`}>
+                    <Link href={`/synopsis/test/${result.test.id}${language === 'kn' ? '?lang=kn' : ''}`}>
                       <FileText aria-hidden="true" />
                       {r.readAnalysis}
                     </Link>
