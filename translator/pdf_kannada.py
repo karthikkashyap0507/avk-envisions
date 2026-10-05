@@ -38,7 +38,7 @@ import pypdfium2.raw as pdfium_c
 
 # Bump whenever a change here would split, join or number paragraphs
 # differently: block ids, and so every stored translation plan, depend on it.
-FORMAT = 2
+FORMAT = 3
 
 FONT_DIR = Path(__file__).resolve().parent / "fonts"
 
@@ -227,6 +227,7 @@ def _chars(textpage, height: float, origin: tuple[float, float]) -> list[Char]:
     r, g, b, a = ctypes.c_uint(), ctypes.c_uint(), ctypes.c_uint(), ctypes.c_uint()
     flags = ctypes.c_int()
     name = ctypes.create_string_buffer(256)
+    matrix = pdfium_c.FS_MATRIX()
     bold_of: dict[int, bool] = {}
     x_origin, y_origin = origin
     page_top = height + y_origin
@@ -255,6 +256,11 @@ def _chars(textpage, height: float, origin: tuple[float, float]) -> list[Char]:
         pdfium_c.FPDFText_GetLooseCharBox(tp, i, rect)
         pdfium_c.FPDFText_GetCharOrigin(tp, i, ox, oy)
         pdfium_c.FPDFText_GetFillColor(tp, i, r, g, b, a)
+        # The size the text is set at, times however much the page scales it:
+        # a page placed into another at 75% reports its own, larger, size.
+        scale = 1.0
+        if pdfium_c.FPDFText_GetMatrix(tp, i, matrix):
+            scale = abs(matrix.a * matrix.d - matrix.b * matrix.c) ** 0.5 or 1.0
         chars.append(
             Char(
                 ch=" " if ch in "\t " else ch,
@@ -263,7 +269,7 @@ def _chars(textpage, height: float, origin: tuple[float, float]) -> list[Char]:
                 x1=rect.right - x_origin,
                 bottom=page_top - rect.bottom,
                 base=page_top - oy.value,
-                size=pdfium_c.FPDFText_GetFontSize(tp, i),
+                size=pdfium_c.FPDFText_GetFontSize(tp, i) * scale,
                 bold=bold_of[key],
                 color=(r.value, g.value, b.value),
                 obj=key,
@@ -561,12 +567,11 @@ def _unchanged_without(page: pdfium.PdfPage, blocks: list[Block], handles: dict[
     unchanged = set()
     rows, cols = before.shape
     for block in blocks:
-        x0, top, x1, bottom = block.bbox
         # The middle of each line, where the letters are: loose boxes overlap
         # the lines above and below, which would count as a change here.
-        inset = (bottom - top) * (0.25 if len(block.lines) == 1 else 0.1)
+        x0, top, x1, bottom = _core(block)
         region = (
-            slice(max(0, int(top + inset)), min(rows, int(bottom - inset) + 1)),
+            slice(max(0, int(top)), min(rows, int(bottom) + 1)),
             slice(max(0, int(x0)), min(cols, int(x1) + 1)),
         )
         changed = int((np.abs(before[region] - after[region]) > 30).sum())
@@ -576,26 +581,71 @@ def _unchanged_without(page: pdfium.PdfPage, blocks: list[Block], handles: dict[
     return unchanged
 
 
-def _hidden_blocks(page: pdfium.PdfPage, blocks: list[Block], handles: dict[int, object]) -> set[int]:
+def _core(block: Block) -> tuple[float, float, float, float]:
+    """The middle of a paragraph's lines, where its letters are."""
+    x0, top, x1, bottom = block.bbox
+    inset = (bottom - top) * (0.25 if len(block.lines) == 1 else 0.1)
+    return (x0, top + inset, x1, bottom - inset)
+
+
+def _hidden_blocks(
+    page: pdfium.PdfPage, blocks: list[Block], handles: dict[int, object], shapes: list[Shape]
+) -> set[int]:
     """Paragraphs already invisible in the PDF - painted over, or clipped away.
 
-    One pass with everything taken away finds what never showed. Where two
-    different paragraphs share a spot (a correction drawn over the old text),
-    each is then checked on its own, since only one of them is on top.
+    One pass with everything taken away finds what never showed. That pass
+    cannot see text under other text, though: a patched PDF paints a new
+    paragraph, on its own background, over an old one, and taking both away
+    changes the spot either way. So any paragraph with something opaque
+    painted over it afterwards, or sharing its spot with different words, is
+    then checked on its own - together with any copies of itself, since a
+    paragraph drawn twice is only hidden if every copy is.
     """
     hidden = _unchanged_without(page, blocks, handles)
     rest = [b for b in blocks if id(b) not in hidden]
-    clashing: list[Block] = []
-    for i, a in enumerate(rest):
-        area_a = max(1e-6, (a.x1 - a.x0) * (a.bottom - a.top))
-        for b in rest[i + 1 :]:
-            if a.text == b.text:
-                continue
-            area_b = max(1e-6, (b.x1 - b.x0) * (b.bottom - b.top))
-            if _overlap(a.bbox, b.bbox) > 0.5 * min(area_a, area_b):
-                clashing.extend(x for x in (a, b) if x not in clashing)
-    for block in clashing:
-        hidden |= _unchanged_without(page, [block], handles)
+
+    groups: list[list[Block]] = []
+    for block in rest:
+        reach = 1.5 * block.size
+        for group in groups:
+            first = group[0]
+            if (
+                first.text == block.text
+                and abs((first.x0 + first.x1) / 2 - (block.x0 + block.x1) / 2) <= reach
+                and abs((first.top + first.bottom) / 2 - (block.top + block.bottom) / 2) <= reach
+            ):
+                group.append(block)
+                break
+        else:
+            groups.append([block])
+
+    def covered_later(block: Block) -> bool:
+        core = _core(block)
+        area = max(1e-6, (core[2] - core[0]) * (core[3] - core[1]))
+        return any(
+            shape.opaque
+            and shape.kind in ("box", "image")
+            and shape.z > block.zmax
+            and _overlap(core, (shape.x0, shape.top, shape.x1, shape.bottom)) > 0.15 * area
+            for shape in shapes
+        )
+
+    def shares_spot(group: list[Block]) -> bool:
+        for block in group:
+            area = max(1e-6, (block.x1 - block.x0) * (block.bottom - block.top))
+            for other in rest:
+                if other.text == block.text:
+                    continue
+                other_area = max(1e-6, (other.x1 - other.x0) * (other.bottom - other.top))
+                if _overlap(block.bbox, other.bbox) > 0.5 * min(area, other_area):
+                    return True
+        return False
+
+    for group in groups:
+        if any(covered_later(b) for b in group) or shares_spot(group):
+            unchanged = _unchanged_without(page, group, handles)
+            if all(id(b) in unchanged for b in group):
+                hidden |= {id(b) for b in group}
     return hidden
 
 
@@ -710,7 +760,7 @@ def read_page(pdf: pdfium.PdfDocument, index: int) -> tuple[Page, pdfium.PdfPage
         block.zmin, block.zmax = min(zs), max(zs)
         block.nested = any(o in found["parents"] for o in block.objs)
 
-    hidden = _hidden_blocks(page, blocks, found["handles"]) if blocks else set()
+    hidden = _hidden_blocks(page, blocks, found["handles"], shapes) if blocks else set()
     blocks = _dedupe([b for b in blocks if id(b) not in hidden], page, found["handles"])
     for n, block in enumerate(blocks):
         block.id = f"{index}-{n}"

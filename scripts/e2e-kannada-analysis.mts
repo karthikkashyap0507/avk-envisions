@@ -19,7 +19,7 @@
  *
  *   BASE_URL=http://localhost:3217 npx tsx scripts/e2e-kannada-analysis.mts
  */
-import { copyFileSync, existsSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
@@ -119,13 +119,27 @@ async function main() {
     select: { id: true, title: true, slug: true, synopsisFileName: true, testSeriesId: true },
     orderBy: { title: 'asc' },
   });
+  // ...preferably in a series with another paper to upload an analysis to
+  // whose slug names no file yet: the upload test must never overwrite a
+  // real analysis (an upload is stored under the paper's slug).
+  const safeSibling = async (c: (typeof candidates)[number]) => {
+    const siblings = await db.test.findMany({
+      where: { deletedAt: null, status: 'PUBLISHED', testSeriesId: c.testSeriesId, id: { not: c.id }, totalQuestions: { gt: 0 } },
+      select: { slug: true },
+    });
+    return siblings.some((t) => !existsSync(path.join(synopsisDir(), `${t.slug}.pdf`)));
+  };
   let paper: (typeof candidates)[number] | undefined;
+  let fallback: (typeof candidates)[number] | undefined;
   for (const candidate of candidates) {
-    if ((await copyState(admin, 'test', candidate.id)).state === 'ready') {
+    if ((await copyState(admin, 'test', candidate.id)).state !== 'ready') continue;
+    fallback ??= candidate;
+    if (await safeSibling(candidate)) {
       paper = candidate;
       break;
     }
   }
+  paper ??= fallback;
   if (!paper) throw new Error('No free paper has its Kannada analysis made yet - let the worker finish first.');
   console.log(`  paper: ${paper.title} (${paper.synopsisFileName})\n`);
 
@@ -225,21 +239,31 @@ async function main() {
 
     // --- A new upload ----------------------------------------------------------------------
     console.log('\n-- An admin uploads an analysis --');
-    const second = await db.test.findFirst({
-      where: { deletedAt: null, status: 'PUBLISHED', testSeriesId: paper.testSeriesId, id: { not: paper.id }, totalQuestions: { gt: 0 } },
-      select: { id: true, slug: true, synopsisFileName: true },
+    // An upload is stored under the paper's slug, so only a paper whose slug
+    // names no file yet: the test must never write over a real analysis.
+    const others = await db.test.findMany({
+      where: { deletedAt: null, status: 'PUBLISHED', id: { not: paper.id }, totalQuestions: { gt: 0 }, testSeriesId: { not: null } },
+      select: { id: true, slug: true, synopsisFileName: true, testSeriesId: true },
+      orderBy: [{ testSeriesId: 'asc' }, { slug: 'asc' }],
     });
+    const second =
+      others.find((t) => t.testSeriesId === paper!.testSeriesId && !existsSync(path.join(synopsisDir(), `${t.slug}.pdf`))) ??
+      others.find((t) => !existsSync(path.join(synopsisDir(), `${t.slug}.pdf`)));
+    if (second && second.testSeriesId !== paper.testSeriesId) {
+      // Another series: the student is given it, as a buyer would be, and sits
+      // a paper in it, as the analysis requires.
+      await db.entitlement.create({
+        data: { userId: student.id, testSeriesId: second.testSeriesId!, sourceType: 'ADMIN_GRANT', note: 'e2e-kannada-analysis' },
+      });
+      const begun = await learner.request.post(`${BASE}/api/attempts`, { data: { testId: second.id } });
+      const id = ((await begun.json()) as { data?: { attemptId?: string } }).data?.attemptId;
+      if (id) await learner.request.post(`${BASE}/api/attempts/${id}/submit`, { data: { reason: 'MANUAL' } });
+    }
     if (!second) {
-      log(false, 'a second paper in the same series to upload to');
+      log(false, 'a paper with no analysis file of its name, to upload to');
     } else {
       const sample = path.join(synopsisDir(), 'kas-pyq-2011-subject-indian-polity.pdf');
       const original = second.synopsisFileName;
-      // An upload is stored under the paper's slug; if a file of that name is
-      // already there it is kept aside and put back afterwards.
-      const target = path.join(synopsisDir(), `${second.slug}.pdf`);
-      const backup = `${target}.e2e-backup`;
-      const hadFile = existsSync(target);
-      if (hadFile) copyFileSync(target, backup);
       try {
         const uploaded = await admin.request.post(`${BASE}/api/admin/synopsis`, {
           multipart: {
@@ -258,7 +282,11 @@ async function main() {
         await page.locator('h1').first().waitFor();
         const body = await page.locator('body').innerText();
         log((await page.getByTestId('analysis-language').count()) === 0, 'until it is complete, the student sees no switch');
-        log(!/prepar|translating|ಸಿದ್ಧ/i.test(body), 'and no "being prepared" message - just the English');
+        // Specific wording: the site's own footer says "Exam Preparation".
+        log(
+          !/being prepared|being translated|translating|ಸಿದ್ಧವಾಗುತ್ತಿದೆ|ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ/i.test(body),
+          'and no "being prepared" message - just the English',
+        );
         const notYet = await learner.request.get(`${BASE}/api/synopsis/test/${second.id}?lang=kn`);
         log(notYet.status() === 404, 'the Kannada address has nothing to give yet', `HTTP ${notYet.status()}`);
 
@@ -288,10 +316,6 @@ async function main() {
         log(gone, 'and takes its Kannada copy with it');
       } finally {
         await db.test.update({ where: { id: second.id }, data: { synopsisFileName: original } });
-        if (hadFile) {
-          copyFileSync(backup, target);
-          rmSync(backup);
-        }
       }
     }
 
@@ -313,6 +337,7 @@ async function main() {
   } finally {
     await browser.close();
     await db.testAttempt.deleteMany({ where: { userId: student.id } });
+    await db.entitlement.deleteMany({ where: { userId: student.id } });
     await db.user.deleteMany({ where: { email: { in: [ADMIN, STUDENT] } } });
     await db.$disconnect();
   }

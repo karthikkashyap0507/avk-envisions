@@ -18,7 +18,7 @@ import { serverEnv } from '@/lib/env';
  */
 
 /** Must match FORMAT in translator/pdf_kannada.py. */
-export const PDF_FORMAT = 2;
+export const PDF_FORMAT = 3;
 
 /** Python, or the packages the script needs, are not installed (yet). */
 export class PdfToolUnavailableError extends Error {
