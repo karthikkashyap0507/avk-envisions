@@ -46,7 +46,7 @@ export const RATE_LIMITS = {
   /** Answer autosave fires often by design; this only catches runaway clients. */
   attemptSync: { limit: 240, windowMs: 60 * 1000 },
   submitAttempt: { limit: 10, windowMs: 60 * 1000 },
-  aiCoach: { limit: 20, windowMs: 60 * 60 * 1000 },
+  aiCoach: { limit: 60, windowMs: 60 * 60 * 1000 },
   aiGenerate: { limit: 10, windowMs: 60 * 60 * 1000 },
   checkout: { limit: 20, windowMs: 60 * 60 * 1000 },
   support: { limit: 10, windowMs: 60 * 60 * 1000 },

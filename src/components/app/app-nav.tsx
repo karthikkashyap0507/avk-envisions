@@ -19,7 +19,6 @@ import {
   Menu,
   Settings,
   ListChecks,
-  Target,
   Trophy,
   User,
   X,
@@ -59,8 +58,9 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       { href: '/', label: 'Home', icon: Home },
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/my-tests', label: 'My tests', icon: FileQuestion },
-      { href: '/practice', label: 'Practice', icon: Target },
-      { href: '/quiz', label: 'Quizzes', icon: ListChecks },
+      // "Quiz" is the practice drill: untimed questions from the bank with the
+      // solution shown at once. The separate quizzes page is hidden.
+      { href: '/practice', label: 'Quiz', icon: ListChecks },
       { href: '/study-planner', label: 'Study planner', icon: CalendarCheck },
     ],
   },

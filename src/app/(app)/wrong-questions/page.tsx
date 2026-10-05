@@ -114,9 +114,9 @@ export default async function WrongQuestionsPage() {
         <EmptyState
           icon={XCircle}
           title="Nothing to revise yet"
-          description="Once you get a question wrong in a test or in practice, it lands here with the correct answer and a full solution."
+          description="Once you get a question wrong in a test or a quiz, it lands here with the correct answer and a full solution."
           action={{ label: 'Attempt a test', href: '/my-tests' }}
-          secondaryAction={{ label: 'Start practising', href: '/practice' }}
+          secondaryAction={{ label: 'Take a quiz', href: '/practice' }}
         />
       ) : (
         <>
@@ -133,7 +133,7 @@ export default async function WrongQuestionsPage() {
             <Button asChild size="sm" className="ml-auto">
               <Link href="/practice">
                 <Target aria-hidden="true" />
-                Practise these
+                Quiz yourself on these
               </Link>
             </Button>
           </div>

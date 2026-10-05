@@ -40,6 +40,20 @@ export default async function AdminQuestionsPage({
 
   const page = Math.max(1, Number.parseInt(params.page ?? '1', 10) || 1);
 
+  // This list's own address, handed to the editor as the way back.
+  const listQuery = new URLSearchParams();
+  for (const key of ['testId', 'q', 'examId', 'subjectId', 'status', 'difficulty', 'flagged', 'page'] as const) {
+    const value = params[key];
+    if (value) listQuery.set(key, value);
+  }
+  const listHref = listQuery.size > 0 ? `/admin/questions?${listQuery.toString()}` : '/admin/questions';
+  const editHref = (questionId: string) => {
+    const query = new URLSearchParams();
+    if (params.testId) query.set('testId', params.testId);
+    if (listHref !== '/admin/questions') query.set('back', listHref);
+    return query.size > 0 ? `/admin/questions/${questionId}?${query.toString()}` : `/admin/questions/${questionId}`;
+  };
+
   // The bank opens on the papers, not on every question ever imported.
   // Content is written and corrected one paper at a time, and reaching the 2011
   // Paper II questions in a flat list of 1,273 meant paging past a thousand
@@ -312,13 +326,10 @@ export default async function AdminQuestionsPage({
               {result.rows.map((question) => (
                 <li key={question.id} className="flex items-start gap-1 pr-3">
                   <Link
-                    // Carries the paper through, so saving comes back here
+                    // Carries this list through - the paper, or the filters
+                    // such as "has a review note" - so Back returns here
                     // rather than to the unfiltered bank.
-                    href={
-                      params.testId
-                        ? `/admin/questions/${question.id}?testId=${params.testId}`
-                        : `/admin/questions/${question.id}`
-                    }
+                    href={editHref(question.id)}
                     className="group flex items-start gap-4 p-4 transition-colors hover:bg-muted/40"
                   >
                     <div className="min-w-0 flex-1">

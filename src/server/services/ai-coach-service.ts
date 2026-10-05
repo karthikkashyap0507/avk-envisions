@@ -6,7 +6,8 @@ import { db } from '@/server/db';
 import { logger } from '@/server/logger';
 import { getAiProvider, isAiEnabled, type ChatMessage } from '@/server/ai/provider';
 
-import { getAnalyticsOverview, getSubjectPerformance, getTopicVerdicts } from './analytics-service';
+import { getAnalyticsOverview, getScoreTrend, getSubjectPerformance, getTopicVerdicts } from './analytics-service';
+import { coachAnswer, type CoachRecord } from './coach-engine';
 
 /**
  * AVK AI Coach.
@@ -16,6 +17,11 @@ import { getAnalyticsOverview, getSubjectPerformance, getTopicVerdicts } from '.
  * whole point — a generic study-tips chatbot is worthless, and one that invents
  * statistics about a student is actively harmful. The system prompt is
  * explicit that it must not fabricate figures beyond the ones supplied.
+ *
+ * With no AI model connected, the coach answers from its own built-in answers
+ * (coach-engine.ts) instead of refusing: the same record, every figure from
+ * it, with hand-written advice around them. Those cost nothing, so there is
+ * no monthly allowance for them.
  */
 
 /** Monthly request cap for students with no paid plan. */
@@ -84,6 +90,29 @@ async function buildContext(userId: string): Promise<string> {
   return lines.join('\n');
 }
 
+/** The student's record, as the built-in coach reads it. */
+async function buildRecord(userId: string): Promise<CoachRecord> {
+  const [overview, subjects, verdicts, trend] = await Promise.all([
+    getAnalyticsOverview(userId),
+    getSubjectPerformance(userId),
+    getTopicVerdicts(userId),
+    getScoreTrend(userId, 6),
+  ]);
+  return {
+    questionsAnswered: overview.questionsAnswered,
+    correct: overview.correct,
+    accuracy: overview.accuracy,
+    avgTimeSeconds: overview.avgTimeSeconds,
+    testsCompleted: overview.testsCompleted,
+    practiceSessions: overview.practiceSessions,
+    subjects: subjects.map((s) => ({ name: s.name, total: s.total, accuracy: s.accuracy, isReliable: s.isReliable })),
+    weakTopics: verdicts.weak.map((t) => ({ name: t.name, total: t.total, accuracy: t.accuracy })),
+    strongTopics: verdicts.strong.map((t) => ({ name: t.name, total: t.total, accuracy: t.accuracy })),
+    recentScores: trend.map((t) => ({ title: t.title, percentage: t.percentage })),
+    minAnswers: verdicts.minAnswers,
+  };
+}
+
 /**
  * Monthly usage allowance.
  *
@@ -94,6 +123,12 @@ export async function getAiAllowance(userId: string) {
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
+
+  // The built-in answers cost nothing: no allowance to run out of.
+  if (!isAiEnabled()) {
+    const used = await db.aIRequest.count({ where: { userId, createdAt: { gte: monthStart } } });
+    return { used, limit: -1, remaining: -1, unlimited: true };
+  }
 
   const [used, subscription] = await Promise.all([
     db.aIRequest.count({ where: { userId, createdAt: { gte: monthStart } } }),
@@ -122,10 +157,26 @@ export interface AskCoachParams {
 
 export async function askCoach({ userId, question, history = [] }: AskCoachParams) {
   if (!isAiEnabled()) {
-    throw new AppError(
-      'AI_DISABLED',
-      'The AI Coach is not configured on this deployment yet. Everything else on your dashboard works as normal.',
-    );
+    const started = Date.now();
+    const answer = coachAnswer(question, await buildRecord(userId));
+    await db.aIRequest
+      .create({
+        data: {
+          userId,
+          feature: 'COACH',
+          provider: 'builtin',
+          model: 'avk-coach',
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+          latencyMs: Date.now() - started,
+          status: 'SUCCESS',
+          promptPreview: question.slice(0, 200),
+          responsePreview: answer.slice(0, 200),
+        },
+      })
+      .catch((error) => logger.warn({ error }, 'Could not log a coach answer'));
+    return { answer, allowance: await getAiAllowance(userId) };
   }
 
   const allowance = await getAiAllowance(userId);

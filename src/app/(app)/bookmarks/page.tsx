@@ -65,14 +65,14 @@ export default async function BookmarksPage() {
           icon={Bookmark}
           title="No bookmarks yet"
           description="Tap the bookmark icon on any question while practising or reviewing a result, and it will be saved here for later."
-          action={{ label: 'Start practising', href: '/practice' }}
+          action={{ label: 'Take a quiz', href: '/practice' }}
           secondaryAction={{ label: 'My tests', href: '/my-tests' }}
         />
       ) : (
         <>
           <div className="flex flex-wrap gap-2">
             <Button asChild size="sm" variant="outline">
-              <Link href="/practice">Practise bookmarked questions</Link>
+              <Link href="/practice">Quiz yourself on bookmarked questions</Link>
             </Button>
           </div>
 

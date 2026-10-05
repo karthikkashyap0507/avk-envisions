@@ -29,9 +29,15 @@ export default async function EditQuestionPage({
   ]);
   if (!question) notFound();
 
-  // Carries the paper the editor came from, so saving returns there instead of
-  // to the unfiltered bank.
-  const returnTo = query.testId ? `/admin/questions?testId=${query.testId}` : undefined;
+  // The list the editor was opened from - a paper, or a filtered list such as
+  // the questions with a review note - so Back returns there instead of to the
+  // unfiltered bank. Only a question-bank address is accepted.
+  const returnTo =
+    query.back && query.back.startsWith('/admin/questions')
+      ? query.back
+      : query.testId
+        ? `/admin/questions?testId=${query.testId}`
+        : undefined;
 
   return (
     <QuestionEditor

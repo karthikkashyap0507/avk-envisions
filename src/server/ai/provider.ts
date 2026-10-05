@@ -8,10 +8,10 @@ import { logger } from '@/server/logger';
  * AI provider abstraction.
  *
  * Two real providers behind one interface, plus a disabled mode that refuses
- * loudly. There is deliberately no mock or canned-response fallback: an AI
- * coach that invents plausible-sounding study advice when it is not actually
- * connected is worse than one that says it is unavailable, because the student
- * cannot tell the difference.
+ * loudly. There is deliberately no mock model here: nothing pretends to be a
+ * model that is not connected. Without one, the coach uses its own built-in
+ * answers instead (services/coach-engine.ts) - written advice around the
+ * student's real figures, never invented ones.
  */
 
 export interface ChatMessage {

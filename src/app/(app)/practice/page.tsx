@@ -13,7 +13,7 @@ import { db } from '@/server/db';
 import { getPracticeFilters, getRecentPracticeSessions } from '@/server/services/practice-service';
 
 export const metadata: Metadata = {
-  title: 'Practice',
+  title: 'Quiz',
   robots: { index: false, follow: false },
 };
 
@@ -35,7 +35,7 @@ export default async function PracticePage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Practice</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Quiz</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Untimed, unpenalised drilling with the solution revealed the moment you answer.
         </p>
@@ -49,7 +49,7 @@ export default async function PracticePage() {
                 <PlayCircle className="size-5" aria-hidden="true" />
               </span>
               <div>
-                <p className="font-semibold leading-tight">Practice session in progress</p>
+                <p className="font-semibold leading-tight">Quiz in progress</p>
                 <p className="mt-0.5 text-sm text-muted-foreground">
                   {live.attemptedCount} of {live.questionCount} answered
                 </p>
@@ -66,7 +66,7 @@ export default async function PracticePage() {
         <EmptyState
           icon={Target}
           title="No questions available yet"
-          description="Practice opens up as soon as questions are published to the bank."
+          description="The quiz opens up as soon as questions are published to the bank."
           action={{ label: 'Browse courses', href: '/courses' }}
         />
       ) : (

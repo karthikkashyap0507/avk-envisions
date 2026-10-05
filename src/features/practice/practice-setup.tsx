@@ -80,12 +80,12 @@ export function PracticeSetup({ subjects, bookmarkCount, incorrectCount }: Pract
         { source, subjectId, chapterId, difficulty, count },
       );
 
-      if (result.resumed) toast.info('Resuming your practice session in progress.');
+      if (result.resumed) toast.info('Resuming your quiz in progress.');
       router.push(result.href);
     } catch (error) {
       setStarting(false);
       toast.error(
-        error instanceof ApiClientError ? error.message : 'We could not start practice.',
+        error instanceof ApiClientError ? error.message : 'We could not start the quiz.',
       );
     }
   }
@@ -95,7 +95,7 @@ export function PracticeSetup({ subjects, bookmarkCount, incorrectCount }: Pract
       <CardContent className="space-y-6 p-5 sm:p-6">
         {/* Source ------------------------------------------------------ */}
         <fieldset>
-          <legend className="text-sm font-semibold">What do you want to practise?</legend>
+          <legend className="text-sm font-semibold">What do you want to be quizzed on?</legend>
           <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
             {SOURCES.map((item) => {
               const Icon = item.icon;
@@ -283,7 +283,7 @@ export function PracticeSetup({ subjects, bookmarkCount, incorrectCount }: Pract
           loadingText="Preparing questions…"
         >
           <Play aria-hidden="true" />
-          Start practising
+          Start quiz
         </Button>
 
         <p className="text-center text-xs text-muted-foreground">

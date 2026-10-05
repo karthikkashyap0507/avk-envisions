@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { MoreHorizontal, ShieldCheck, ShieldOff, UserCog, UserMinus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -77,7 +78,10 @@ export function UserTable({ rows, currentUserId }: { rows: AdminUserRow[]; curre
 
             <div className="min-w-0 flex-1">
               <p className="flex flex-wrap items-center gap-2">
-                <span className="truncate font-medium leading-tight">{user.name}</span>
+                {/* The name opens everything this student has attempted. */}
+                <Link href={`/admin/users/${user.id}`} className="truncate font-medium leading-tight hover:text-primary hover:underline">
+                  {user.name}
+                </Link>
                 <Badge variant={user.role === 'ADMIN' ? 'brand' : 'muted'} size="sm">
                   {user.role}
                 </Badge>
@@ -108,7 +112,11 @@ export function UserTable({ rows, currentUserId }: { rows: AdminUserRow[]; curre
             </div>
 
             <div className="hidden shrink-0 text-right text-xs text-muted-foreground sm:block">
-              <p>{user.attempts} attempts</p>
+              <p>
+                <Link href={`/admin/users/${user.id}`} className="hover:text-primary hover:underline">
+                  {user.attempts} attempts
+                </Link>
+              </p>
               {user.orders > 0 && <p>{user.orders} orders</p>}
             </div>
 

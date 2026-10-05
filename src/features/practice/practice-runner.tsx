@@ -220,7 +220,7 @@ export function PracticeRunner({
       <div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight">Practice</h1>
+            <h1 className="text-xl font-semibold tracking-tight">Quiz</h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
               {scope} · {source.toLowerCase()} questions
             </p>
@@ -501,7 +501,7 @@ export function PracticeRunner({
           {attempted} of {questions.length} answered · {correct} correct
         </span>
         <Button asChild variant="ghost" size="sm">
-          <Link href="/practice">Exit practice</Link>
+          <Link href="/practice">Exit quiz</Link>
         </Button>
       </div>
     </div>

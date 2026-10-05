@@ -48,6 +48,7 @@ export default async function AdminDashboardPage() {
     documentCoverage(),
   ]);
   const kannadaWorker = translationWorker().status();
+  const canSeeUsers = can(user, PERMISSIONS.USER_READ);
 
   const firstName = user.name.split(' ')[0] ?? user.name;
 
@@ -203,22 +204,41 @@ export default async function AdminDashboardPage() {
               </p>
             ) : (
               <ul className="mt-4 divide-y divide-border">
-                {activity.map((attempt) => (
-                  <li key={attempt.id} className="flex items-center gap-4 py-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium leading-tight">
-                        {attempt.user.name}
-                      </p>
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                        {attempt.test.title} · {formatDate(attempt.submittedAt, 'short')}
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-sm font-semibold tabular-nums">
-                      {attempt.score}
-                      <span className="font-normal text-muted-foreground">/{attempt.maxScore}</span>
-                    </span>
-                  </li>
-                ))}
+                {activity.map((attempt) => {
+                  const row = (
+                    <>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium leading-tight">
+                          {attempt.user.name}
+                        </p>
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                          {attempt.test.title} · {formatDate(attempt.submittedAt, 'short')}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-sm font-semibold tabular-nums">
+                        {attempt.score}
+                        <span className="font-normal text-muted-foreground">/{attempt.maxScore}</span>
+                      </span>
+                    </>
+                  );
+                  // A name opens everything that student has attempted - for
+                  // an admin who may see users; the staff account may not.
+                  return (
+                    <li key={attempt.id}>
+                      {canSeeUsers ? (
+                        <Link
+                          href={`/admin/users/${attempt.user.id}`}
+                          className="-mx-2 flex items-center gap-4 rounded-lg px-2 py-3 transition-colors hover:bg-muted/60"
+                        >
+                          {row}
+                          <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                        </Link>
+                      ) : (
+                        <div className="flex items-center gap-4 py-3">{row}</div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </CardContent>

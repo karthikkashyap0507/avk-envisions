@@ -260,7 +260,7 @@ export default async function DashboardPage() {
             value={formatNumber(summary.questionsSolved)}
             icon={Target}
             tone="info"
-            hint="Tests and practice combined"
+            hint="Tests and quizzes combined"
           />
           <StatCard
             label="Average accuracy"
@@ -475,7 +475,7 @@ export default async function DashboardPage() {
 
               {insights.weak.length > 0 && (
                 <Button asChild fullWidth variant="outline" className="mt-4">
-                  <Link href="/practice">Practise these topics</Link>
+                  <Link href="/practice">Take a quiz on these topics</Link>
                 </Button>
               )}
             </CardContent>

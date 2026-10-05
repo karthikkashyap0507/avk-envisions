@@ -86,13 +86,79 @@ export const getRecentActivity = cache(async (limit = 8) => {
       maxScore: true,
       percentage: true,
       submittedAt: true,
-      user: { select: { name: true } },
+      user: { select: { id: true, name: true } },
       test: { select: { title: true } },
     },
   });
 
   return attempts;
 });
+
+/**
+ * One student and every test they have attempted, newest first - for the
+ * admin page behind a name in the dashboard's recent attempts.
+ *
+ * Every attempt is listed, finished or not: an attempt left in progress, or
+ * abandoned, is part of what an admin asking "what has this student done?"
+ * wants to see.
+ */
+export async function getUserAttemptHistory(userId: string) {
+  const user = await db.user.findFirst({
+    where: { id: userId, deletedAt: null },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      role: true,
+      status: true,
+      signupSource: true,
+      createdAt: true,
+      lastLoginAt: true,
+    },
+  });
+  if (!user) return null;
+
+  const [attempts, quizzes] = await Promise.all([
+    db.testAttempt.findMany({
+      where: { userId },
+      orderBy: { startedAt: 'desc' },
+      select: {
+        id: true,
+        attemptNumber: true,
+        status: true,
+        startedAt: true,
+        submittedAt: true,
+        timeSpentSeconds: true,
+        score: true,
+        maxScore: true,
+        percentage: true,
+        accuracy: true,
+        correctCount: true,
+        incorrectCount: true,
+        unansweredCount: true,
+        test: { select: { id: true, title: true, testSeries: { select: { name: true } } } },
+      },
+    }),
+    db.practiceSession.count({ where: { userId } }),
+  ]);
+
+  const finished = attempts.filter((a) => (TERMINAL_ATTEMPT_STATUSES as readonly string[]).includes(a.status));
+  return {
+    user,
+    attempts,
+    quizzes,
+    summary: {
+      attempts: attempts.length,
+      tests: new Set(attempts.map((a) => a.test.id)).size,
+      finished: finished.length,
+      averagePercentage: finished.length
+        ? round(finished.reduce((sum, a) => sum + a.percentage, 0) / finished.length, 1)
+        : null,
+      bestPercentage: finished.length ? round(Math.max(...finished.map((a) => a.percentage)), 1) : null,
+    },
+  };
+}
 
 /**
  * Tests that are published but unattemptable.

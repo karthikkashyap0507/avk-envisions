@@ -40,7 +40,7 @@ export function BookmarkList({ items }: { items: BookmarkItem[] }) {
     return (
       <EmptyState
         title="All bookmarks removed"
-        description="You have cleared every saved question. Bookmark more while practising and they will appear here."
+        description="You have cleared every saved question. Bookmark more while taking a quiz and they will appear here."
         action={{ label: 'Start practising', href: '/practice' }}
       />
     );

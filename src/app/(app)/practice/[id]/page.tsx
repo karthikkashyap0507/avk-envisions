@@ -6,7 +6,7 @@ import { enforceStudent } from '@/server/auth/guards';
 import { getPracticeSession } from '@/server/services/practice-service';
 
 export const metadata: Metadata = {
-  title: 'Practice session',
+  title: 'Quiz',
   robots: { index: false, follow: false },
 };
 

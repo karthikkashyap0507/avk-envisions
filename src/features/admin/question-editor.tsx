@@ -262,8 +262,16 @@ export function QuestionEditor({
         : await api.post<{ id: string; code: string }>('/api/admin/questions', payload);
 
       toast.success(isEdit ? `Saved ${result.code}.` : `Created ${result.code}.`);
-      router.push(back);
-      router.refresh();
+      if (isEdit) {
+        // An edit stays on this page: someone working through a list of
+        // flagged questions fixes one, checks it, and moves on with Back -
+        // being sent to the question bank lost their place every time.
+        setSaving(false);
+        router.refresh();
+      } else {
+        router.push(back);
+        router.refresh();
+      }
     } catch (caught) {
       const message =
         caught instanceof ApiClientError
@@ -281,7 +289,11 @@ export function QuestionEditor({
           <Button asChild variant="ghost" size="sm" className="-ml-3">
             <Link href={back}>
               <ArrowLeft aria-hidden="true" />
-              {back === '/admin/questions' ? 'Question bank' : 'Back to the paper'}
+              {back === '/admin/questions'
+                ? 'Question bank'
+                : back.startsWith('/admin/questions?testId=') && !back.includes('&')
+                  ? 'Back to the paper'
+                  : 'Back to the list'}
             </Link>
           </Button>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight">

@@ -13,7 +13,7 @@ import { enforceStudent } from '@/server/auth/guards';
 import { getPracticeSession } from '@/server/services/practice-service';
 
 export const metadata: Metadata = {
-  title: 'Practice summary',
+  title: 'Quiz summary',
   robots: { index: false, follow: false },
 };
 
@@ -39,10 +39,10 @@ export default async function PracticeSummaryPage({
         <Button asChild variant="ghost" size="sm" className="-ml-3">
           <Link href="/practice">
             <ArrowLeft aria-hidden="true" />
-            Practice
+            Quiz
           </Link>
         </Button>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight">Practice summary</h1>
+        <h1 className="mt-3 text-2xl font-semibold tracking-tight">Quiz summary</h1>
         <p className="mt-1 text-sm text-muted-foreground">{session.scope}</p>
       </div>
 
@@ -79,7 +79,7 @@ export default async function PracticeSummaryPage({
               <Button asChild size="sm">
                 <Link href="/practice">
                   <RotateCcw aria-hidden="true" />
-                  Practise again
+                  Take another quiz
                 </Link>
               </Button>
               {wrong.length > 0 && (

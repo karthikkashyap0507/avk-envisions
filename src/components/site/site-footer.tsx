@@ -17,7 +17,7 @@ const FOOTER_SECTIONS = [
       { href: '/chapterwise', label: 'Chapterwise practice' },
       { href: '/test-series', label: 'Test series' },
       { href: '/pricing', label: 'Pricing' },
-      { href: '/practice', label: 'Practice' },
+      { href: '/practice', label: 'Quiz' },
     ],
   },
   {

@@ -62,9 +62,9 @@ export default async function AnalyticsPage() {
         <EmptyState
           icon={BarChart3}
           title="No data to analyse yet"
-          description="Attempt a test or a practice session and this page fills with subject, chapter and topic breakdowns drawn from your actual answers."
+          description="Attempt a test or a quiz and this page fills with subject, chapter and topic breakdowns drawn from your actual answers."
           action={{ label: 'Attempt a test', href: '/my-tests' }}
-          secondaryAction={{ label: 'Start practising', href: '/practice' }}
+          secondaryAction={{ label: 'Take a quiz', href: '/practice' }}
         />
       </div>
     );
@@ -77,7 +77,7 @@ export default async function AnalyticsPage() {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Analytics</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Computed from every answer you have given, in tests and in practice.
+          Computed from every answer you have given, in tests and in quizzes.
         </p>
       </header>
 
@@ -93,7 +93,7 @@ export default async function AnalyticsPage() {
           label="Overall accuracy"
           value={`${overview.accuracy}%`}
           icon={Gauge}
-          hint="Across tests and practice"
+          hint="Across tests and quizzes"
         />
         <StatCard
           label="Average time"
@@ -105,7 +105,7 @@ export default async function AnalyticsPage() {
           label="Time invested"
           value={formatDuration(overview.totalTimeSeconds)}
           icon={TrendingUp}
-          hint={`${overview.testsCompleted} tests, ${overview.practiceSessions} practice sessions`}
+          hint={`${overview.testsCompleted} tests, ${overview.practiceSessions} quizzes`}
         />
       </div>
 
@@ -214,7 +214,7 @@ export default async function AnalyticsPage() {
 
             {verdicts.weak.length > 0 && (
               <Button asChild fullWidth variant="outline" className="mt-5">
-                <Link href="/practice">Practise these topics</Link>
+                <Link href="/practice">Take a quiz on these topics</Link>
               </Button>
             )}
           </CardContent>
