@@ -153,6 +153,26 @@ function isRoman(word: string): boolean {
 }
 
 /**
+ * A code or a file name - "KAS-PYQ-2011-PAPER-1-Q1", "KAS-Q3199",
+ * "kas-50-days-1" - which the engine would spell out in Kannada letters. Parts
+ * joined by - _ . or /, with a number among them, and either three parts or
+ * more or a part running letters into digits. "PAPER-1" and "COVID-19" are
+ * still words.
+ */
+function isCode(token: string): boolean {
+  if (!/\d/.test(token) || !/[A-Za-z]/.test(token)) return false;
+  const parts = token.split(/[-_./]/);
+  if (parts.length < 2 || parts.some((part) => !/^[A-Za-z0-9]+$/.test(part))) return false;
+  return parts.length >= 3 || parts.some((part) => /[A-Za-z]/.test(part) && /\d/.test(part));
+}
+
+/** Nothing but codes and numbers: "1 KAS-PYQ-2011-PAPER-1-Q1", "kas-50-days-1". */
+function isCodeLine(text: string): boolean {
+  const tokens = text.split(' ').map((token) => token.replace(/^[("“'#]+|[)"”'.,:;]+$/g, ''));
+  return tokens.some(isCode) && tokens.every((token) => !/[A-Za-z]/.test(token) || isCode(token));
+}
+
+/**
  * A heading in capitals, composed word by word - or null if any word is
  * unknown. Order stays as in English, which reads naturally for a heading
  * ("KAS ಪ್ರಿಲಿಮ್ಸ್ 2024 • ಪತ್ರಿಕೆ-I • PYQ ವಿಶ್ಲೇಷಣೆ").
@@ -190,7 +210,7 @@ function composeWord(token: string): string | null {
   if (!core) return token;
   const q = core.match(QUESTION_NUMBER);
   if (q) return `${lead}ಪ್ರಶ್ನೆ ${q[1]}${q[2] ?? ''}${trail}`;
-  if (!/[A-Za-z]/.test(core) || KEEP_WORDS.has(core.toUpperCase()) || isRoman(core)) return token;
+  if (!/[A-Za-z]/.test(core) || KEEP_WORDS.has(core.toUpperCase()) || isRoman(core) || isCode(core)) return token;
   // "PAPER-II", "MOCK-TEST": the parts either side of a hyphen.
   if (core.includes('-')) {
     const parts = core.split('-').map((part) => {
@@ -248,7 +268,7 @@ function planSegment(segment: string): Piece[] {
     ...(trail ? [{ raw: trail }] : []),
   ];
 
-  if (!isTranslatable(text) || BRAND.test(text)) return fixed(segment);
+  if (!isTranslatable(text) || BRAND.test(text) || isCodeLine(text)) return fixed(segment);
 
   const phrase = PHRASE_INDEX.get(key(text));
   if (phrase) return wrap(fixed(phrase));

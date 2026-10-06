@@ -37,8 +37,10 @@ import pypdfium2 as pdfium
 import pypdfium2.raw as pdfium_c
 
 # Bump whenever a change here would split, join or number paragraphs
-# differently: block ids, and so every stored translation plan, depend on it.
-FORMAT = 3
+# differently - block ids, and so every stored translation plan, depend on it -
+# or draw the copies differently: every copy made under an older number is made
+# again.
+FORMAT = 4
 
 FONT_DIR = Path(__file__).resolve().parent / "fonts"
 
@@ -710,6 +712,26 @@ def _claim_duplicates(lines: list[Line], found: dict, textpage) -> None:
             twin.objs.add(key)
 
 
+def _pin_colours(page: pdfium.PdfPage) -> None:
+    """Write every shape's and text's colour back as plain RGB before PDFium
+    rewrites the page.
+
+    PDFium's rewrite drops colours given in an ICC colour space - which many
+    PDF makers use for every colour - and leaves them black: a page's white
+    background came out solid black, its text unreadable on top. Setting the
+    same colour again, as RGB, makes PDFium write it out.
+    """
+    r, g, b, a = ctypes.c_uint(), ctypes.c_uint(), ctypes.c_uint(), ctypes.c_uint()
+    for i in range(pdfium_c.FPDFPage_CountObjects(page.raw)):
+        obj = pdfium_c.FPDFPage_GetObject(page.raw, i)
+        if pdfium_c.FPDFPageObj_GetType(obj) not in (pdfium_c.FPDF_PAGEOBJ_PATH, pdfium_c.FPDF_PAGEOBJ_TEXT):
+            continue
+        if pdfium_c.FPDFPageObj_GetFillColor(obj, r, g, b, a):
+            pdfium_c.FPDFPageObj_SetFillColor(obj, r.value, g.value, b.value, a.value)
+        if pdfium_c.FPDFPageObj_GetStrokeColor(obj, r, g, b, a):
+            pdfium_c.FPDFPageObj_SetStrokeColor(obj, r.value, g.value, b.value, a.value)
+
+
 def page_box(page: pdfium.PdfPage) -> tuple[float, float, float, float]:
     """The part of the page that is shown: left, bottom, right, top.
 
@@ -1189,11 +1211,62 @@ def _redraw_original(pdf, block: Block, ts: Typesetter) -> None:
 
 
 def render(pdf_path: str, translations: dict[str, str], out_path: str) -> dict:
+    """Write the Kannada copy, and check every changed page came out as meant.
+
+    PDFium rewrites a page's drawing instructions when text is taken off it,
+    and a rewrite can lose what PDFium does not fully support - a gradient, a
+    pattern, a colour it cannot express. So each changed page is drawn as it
+    should look, the saved file is drawn too, and any page that differs is
+    made again a safer way: its background as an image of the page with the
+    English taken off, and the Kannada over it. Nothing on such a page is
+    rewritten, so nothing can be lost.
+    """
+    report, intended = _build(pdf_path, translations, out_path, set())
+    misdrawn = _misdrawn(out_path, intended)
+    if misdrawn:
+        report, intended = _build(pdf_path, translations, out_path, misdrawn)
+        report["imaged"] = sorted(misdrawn)
+        report["misdrawn"] = sorted(_misdrawn(out_path, intended))
+    return report
+
+
+def _snapshot(page: pdfium.PdfPage):
+    import numpy as np
+
+    return np.asarray(page.render(scale=0.5, draw_annots=False).to_pil().convert("L"), dtype=np.uint8)
+
+
+def _misdrawn(out_path: str, intended: dict[int, object]) -> set[int]:
+    """Pages of the saved file that do not look as they were meant to."""
+    import numpy as np
+
+    bad: set[int] = set()
+    saved = pdfium.PdfDocument(out_path)
+    try:
+        for index, expected in intended.items():
+            page = saved[index]
+            actual = _snapshot(page)
+            page.close()
+            if actual.shape != expected.shape:
+                bad.add(index)
+                continue
+            if int((np.abs(actual.astype(np.int16) - expected) > 40).sum()) > 0.005 * actual.size:
+                bad.add(index)
+    finally:
+        saved.close()
+    return bad
+
+
+def _build(pdf_path: str, translations: dict[str, str], out_path: str, imaged: set[int]) -> tuple[dict, dict[int, object]]:
+    """One pass at the Kannada copy; `imaged` pages get the image background."""
     ts = Typesetter()
     overlay = _overlay_pdf()
     source = pdfium.PdfDocument(pdf_path)
     report = {"pages": len(source), "blocks": 0, "shrunk": 0, "overflow": [], "minScale": 1.0, "patched": 0}
-    drawn_pages: list[int] = []
+    # Pages with English taken off, kept open: the change lives only in
+    # PDFium's model of a page until it is written, and closing would lose it.
+    held: dict[int, pdfium.PdfPage] = {}
+    intended: dict[int, object] = {}
 
     try:
         pages_with_work = {key.split("-", 1)[0] for key, value in translations.items() if value.strip()}
@@ -1234,8 +1307,10 @@ def render(pdf_path: str, translations: dict[str, str], out_path: str) -> dict:
                 if block.id in wanted:
                     placements[block.id] = place(block, info, ts.clean(translations[block.id]), ts)
 
+            image_background = index in imaged
+            # Taken off PDFium's model of the page only; the page is written
+            # out once, at the end, after its Kannada is in place.
             nested_blocks = []
-            top_level_removed = False
             for block in redraw.values():
                 for obj in block.objs:
                     handle = info.handles.get(obj)
@@ -1247,29 +1322,37 @@ def render(pdf_path: str, translations: dict[str, str], out_path: str) -> dict:
                             pdfium_c.FPDFPageObj_Destroy(handle)
                     elif pdfium_c.FPDFPage_RemoveObject(page.raw, handle):
                         pdfium_c.FPDFPageObj_Destroy(handle)
-                        top_level_removed = True
                 if block.nested:
                     nested_blocks.append(block)
-            if top_level_removed:
-                pdfium_c.FPDFPage_GenerateContent(page.raw)
 
-            if nested_blocks:
-                # PDFium cannot write a form back, so text inside one stays in
-                # the file. Lay the clean background over it instead: the page
-                # as it now renders, with that text gone, cut to each spot.
+            if image_background:
+                # The page as it now draws, English gone, becomes its own
+                # background; everything else on it is taken off, so the
+                # rewrite below has nothing left to get wrong.
                 clean = page.render(scale=PATCH_SCALE, draw_annots=False).to_pil().convert("RGB")
-                for block in nested_blocks:
-                    boxes = [block.bbox, *block.copies]
-                    x0 = max(0.0, min(b[0] for b in boxes) - 1.0)
-                    top = max(0.0, min(b[1] for b in boxes) - 1.0)
-                    x1 = min(info.width, max(b[2] for b in boxes) + 1.0)
-                    bottom = min(info.height, max(b[3] for b in boxes) + 1.0)
-                    crop = clean.crop(
-                        (int(x0 * PATCH_SCALE), int(top * PATCH_SCALE), int(x1 * PATCH_SCALE + 0.999), int(bottom * PATCH_SCALE + 0.999))
-                    )
-                    overlay.image(crop, x=x0, y=top, w=x1 - x0, h=bottom - top)
-                    report["patched"] += 1
-            page.close()
+                overlay.image(clean, x=0, y=0, w=info.width, h=info.height)
+                for i in reversed(range(pdfium_c.FPDFPage_CountObjects(page.raw))):
+                    obj = pdfium_c.FPDFPage_GetObject(page.raw, i)
+                    if pdfium_c.FPDFPage_RemoveObject(page.raw, obj):
+                        pdfium_c.FPDFPageObj_Destroy(obj)
+            else:
+                if nested_blocks:
+                    # PDFium cannot write a form back, so text inside one stays
+                    # in the file. Lay the clean background over it instead: the
+                    # page as it now renders, with that text gone, cut to each spot.
+                    clean = page.render(scale=PATCH_SCALE, draw_annots=False).to_pil().convert("RGB")
+                    for block in nested_blocks:
+                        boxes = [block.bbox, *block.copies]
+                        x0 = max(0.0, min(b[0] for b in boxes) - 1.0)
+                        top = max(0.0, min(b[1] for b in boxes) - 1.0)
+                        x1 = min(info.width, max(b[2] for b in boxes) + 1.0)
+                        bottom = min(info.height, max(b[3] for b in boxes) + 1.0)
+                        crop = clean.crop(
+                            (int(x0 * PATCH_SCALE), int(top * PATCH_SCALE), int(x1 * PATCH_SCALE + 0.999), int(bottom * PATCH_SCALE + 0.999))
+                        )
+                        overlay.image(crop, x=x0, y=top, w=x1 - x0, h=bottom - top)
+                        report["patched"] += 1
+            held[index] = page
 
             for block in redraw.values():
                 if block.id in placements:
@@ -1283,18 +1366,21 @@ def render(pdf_path: str, translations: dict[str, str], out_path: str) -> dict:
                         report["overflow"].append(block.id)
                 else:
                     _redraw_original(overlay, block, ts)
-            drawn_pages.append(index)
 
         layer = pdfium.PdfDocument(bytes(overlay.output()))
         keep = []
-        for index in drawn_pages:
-            page = source[index]
+        for index in sorted(held):
+            page = held.pop(index)
             x0, y0, _, _ = page_box(page)
             xobject = layer.page_as_xobject(index, source)
             obj = xobject.as_pageobject()
             if x0 or y0:
                 obj.transform(pdfium.PdfMatrix().translate(x0, y0))
             page.insert_obj(obj)
+            # What this page is meant to look like, from PDFium's model of it
+            # before anything is written - to hold the saved file against.
+            intended[index] = _snapshot(page)
+            _pin_colours(page)
             page.gen_content()
             keep.append(xobject)
             page.close()
@@ -1303,8 +1389,10 @@ def render(pdf_path: str, translations: dict[str, str], out_path: str) -> dict:
             xobject.close()
         layer.close()
     finally:
+        for page in held.values():
+            page.close()
         source.close()
-    return report
+    return report, intended
 
 
 # ---------------------------------------------------------------------------

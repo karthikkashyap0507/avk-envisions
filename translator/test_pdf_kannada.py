@@ -77,6 +77,65 @@ def sample_pdf(path: str) -> None:
     pdf.output(path)
 
 
+def raw_pdf(path: str, content: bytes, resources: bytes, extra: list[bytes]) -> None:
+    """A one-page A4 PDF written by hand, for what FPDF does not write itself."""
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources " + resources + b" /Contents 4 0 R >>",
+        b"<< /Length %d >>\nstream\n" % len(content) + content + b"\nendstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        *extra,
+    ]
+    out = b"%PDF-1.7\n"
+    offsets = []
+    for number, body in enumerate(objects, 1):
+        offsets.append(len(out))
+        out += b"%d 0 obj\n" % number + body + b"\nendobj\n"
+    xref = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objects) + 1)
+    out += b"".join(b"%010d 00000 n \n" % offset for offset in offsets)
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objects) + 1, xref)
+    with open(path, "wb") as f:
+        f.write(out)
+
+
+def icc_pdf(path: str) -> None:
+    """A light grey page and dark text, in an ICC colour space - as many PDF
+    makers write every colour."""
+    from PIL import ImageCms
+
+    profile = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+    content = (
+        b"q /CS0 cs 0.95 0.95 0.95 sc 40 60 515 720 re f Q\n"
+        b"BT /F1 14 Tf /CS0 cs 0.1 0.1 0.1 sc 60 720 Td (Hello world, this is a sentence.) Tj ET\n"
+    )
+    raw_pdf(
+        path,
+        content,
+        b"<< /Font << /F1 5 0 R >> /ColorSpace << /CS0 [/ICCBased 6 0 R] >> >>",
+        [b"<< /N 3 /Length %d >>\nstream\n" % len(profile) + profile + b"\nendstream"],
+    )
+
+
+def gradient_pdf(path: str) -> None:
+    """Text over a gradient, which PDFium cannot write back."""
+    content = (
+        b"q /Pattern cs /P0 scn 40 60 515 720 re f Q\n"
+        b"BT /F1 14 Tf 0 0 0 rg 60 720 Td (Hello world, this is a sentence.) Tj ET\n"
+    )
+    shading = (
+        b"<< /ShadingType 2 /ColorSpace /DeviceRGB /Coords [0 0 595 0] "
+        b"/Function << /FunctionType 2 /Domain [0 1] /C0 [1 0.9 0.6] /C1 [0.6 0.9 1] /N 1 >> >>"
+    )
+    raw_pdf(
+        path,
+        content,
+        b"<< /Font << /F1 5 0 R >> /Pattern << /P0 6 0 R >> >>",
+        [b"<< /Type /Pattern /PatternType 2 /Shading " + shading + b" >>"],
+    )
+
+
 def pixel(pdf_path: str, x: float, y: float) -> tuple[int, int, int]:
     doc = pdfium.PdfDocument(pdf_path)
     image = doc[0].render(scale=2).to_pil().convert("RGB")
@@ -163,6 +222,45 @@ class RenderTest(unittest.TestCase):
         self.assertEqual(self.report["blocks"], 3)
         self.assertEqual(self.report["overflow"], [])
         self.assertGreaterEqual(self.report["minScale"], pk.MIN_SCALE)
+
+
+class BackgroundTest(unittest.TestCase):
+    """Taking text off a page must not change how anything else on it looks."""
+
+    def translate(self, make) -> tuple[str, str, dict, str]:
+        folder = tempfile.mkdtemp()
+        source = os.path.join(folder, "page.pdf")
+        output = os.path.join(folder, "page-kn.pdf")
+        make(source)
+        blocks = pk.extract(source)["pages"][0]["blocks"]
+        self.assertEqual([b["text"] for b in blocks], ["Hello world, this is a sentence."])
+        report = pk.render(source, {blocks[0]["id"]: "ನಮಸ್ಕಾರ, ಇದೊಂದು ವಾಕ್ಯ."}, output)
+        doc = pdfium.PdfDocument(output)
+        text = doc[0].get_textpage().get_text_range()
+        doc.close()
+        return source, output, report, text
+
+    def assertSameColour(self, source: str, output: str, x: float, y: float) -> None:
+        before, after = pixel(source, x, y), pixel(output, x, y)
+        self.assertTrue(all(abs(a - b) <= 4 for a, b in zip(before, after)), f"{before} became {after}")
+
+    def test_icc_colours_stay_light(self):
+        # PDFium writes ICC colours back as black unless they are pinned.
+        source, output, report, text = self.translate(icc_pdf)
+        self.assertSameColour(source, output, 300, 400)
+        self.assertSameColour(source, output, 520, 110)
+        self.assertNotIn("imaged", report)
+        self.assertTrue(any("ಀ" <= ch <= "೿" for ch in text))
+        self.assertNotIn("Hello", text)
+
+    def test_a_gradient_survives(self):
+        source, output, report, text = self.translate(gradient_pdf)
+        self.assertSameColour(source, output, 100, 400)
+        self.assertSameColour(source, output, 500, 400)
+        self.assertEqual(report["imaged"], [0])
+        self.assertEqual(report["misdrawn"], [])
+        self.assertTrue(any("ಀ" <= ch <= "೿" for ch in text))
+        self.assertNotIn("Hello", text)
 
 
 class TypesetterTest(unittest.TestCase):

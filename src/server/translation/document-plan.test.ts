@@ -52,6 +52,19 @@ describe('planBlock', () => {
     expect(planBlock('1982')).toBeNull();
   });
 
+  it('leaves question codes and file names alone, not spelt out in Kannada', () => {
+    expect(kannada('1 KAS-PYQ-2011-PAPER-1-Q1 · 2 marks')).toBe('1 KAS-PYQ-2011-PAPER-1-Q1 · «2 marks»');
+    expect(kannada('100 questions · 200 marks · 120 minutes · kas-pyq-2011-paper-1')).toBe(
+      '100 ಪ್ರಶ್ನೆಗಳು · «200 marks» · «120 minutes» · kas-pyq-2011-paper-1',
+    );
+    expect(planBlock('1 KAS-Q3199')).toBeNull();
+    expect(planBlock('kas-50-days-1')).toBeNull();
+    expect(kannada('KAS-50-DAYS-1 SYNOPSIS')).toBe('KAS-50-DAYS-1 ಸಾರಾಂಶ');
+    // Words with a number in them are still words.
+    expect(kannada('KAS PRELIMS 2024 • PAPER-1 • PYQ ANALYSIS')).toBe('KAS ಪ್ರಿಲಿಮ್ಸ್ 2024 • ಪತ್ರಿಕೆ-1 • PYQ ವಿಶ್ಲೇಷಣೆ');
+    expect(sentences('COVID-19 and the economy')).toEqual(['COVID-19 and the economy']);
+  });
+
   it('sends prose through the sentence splitter, markers and arrows kept', () => {
     expect(kannada('• Third gender recognition → NALSA v. Union of India')).toBe(
       '• «Third gender recognition» → «NALSA v. Union of India»',
