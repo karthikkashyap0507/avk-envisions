@@ -61,5 +61,5 @@ export const POST = route<{ granted: boolean; redirectTo: string; courseName: st
       message: 'Payment confirmed. Your access is active.',
     };
   },
-  { rateLimit: 'checkout' },
+  { rateLimit: 'checkoutVerify' },
 );

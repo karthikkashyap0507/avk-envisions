@@ -143,6 +143,13 @@ export function BuyButton({
 
       widget.open();
     } catch (error) {
+      // Already theirs - often an earlier payment the server has only now
+      // confirmed with Razorpay. Show the page as it is for them now.
+      if (error instanceof ApiClientError && error.status === 409) {
+        toast.success(error.message, { duration: 8_000 });
+        router.refresh();
+        return;
+      }
       toast.error(
         error instanceof ApiClientError
           ? error.message

@@ -12,6 +12,7 @@ import { enforceStudent } from '@/server/auth/guards';
 import { CommunityInvite } from '@/features/checkout/community-invite';
 import { db } from '@/server/db';
 import { getPublishedPlans } from '@/server/services/marketing-service';
+import { STUDENT_WINDOW_MS, syncUnpaidOrders, within } from '@/server/services/payment-sync';
 
 export const metadata: Metadata = {
   title: 'Subscription',
@@ -22,6 +23,14 @@ export const dynamic = 'force-dynamic';
 
 export default async function SubscriptionPage() {
   const user = await enforceStudent('/subscriptions');
+
+  // A student who paid but was not let in comes here to look. Their recent
+  // unpaid orders are checked with Razorpay first, so a payment that went
+  // through shows - and opens their access - without waiting for anyone.
+  await within(
+    5_000,
+    syncUnpaidOrders({ userId: user.id, since: new Date(Date.now() - STUDENT_WINDOW_MS) }),
+  );
 
   const [subscription, entitlements, plans, orders] = await Promise.all([
     db.subscription.findFirst({

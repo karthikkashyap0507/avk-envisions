@@ -49,6 +49,12 @@ export const RATE_LIMITS = {
   aiCoach: { limit: 60, windowMs: 60 * 60 * 1000 },
   aiGenerate: { limit: 10, windowMs: 60 * 60 * 1000 },
   checkout: { limit: 20, windowMs: 60 * 60 * 1000 },
+  /**
+   * Confirming a payment already made. Its own budget: sharing one with
+   * opening checkouts meant a student who had tried a few times could pay and
+   * then be refused the confirmation.
+   */
+  checkoutVerify: { limit: 60, windowMs: 60 * 60 * 1000 },
   support: { limit: 10, windowMs: 60 * 60 * 1000 },
   questionReport: { limit: 20, windowMs: 60 * 60 * 1000 },
   search: { limit: 60, windowMs: 60 * 1000 },

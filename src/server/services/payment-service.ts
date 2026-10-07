@@ -47,6 +47,14 @@ export function paymentsEnabled(): boolean {
   return razorpay() !== null;
 }
 
+/**
+ * Orders that can still be paid. FAILED is one of them: after a failed
+ * attempt Razorpay offers the buyer another go in the same window, against the
+ * same order, and that second attempt often succeeds - a bank's netbanking
+ * fails, they switch to UPI.
+ */
+export const UNPAID_STATUSES = ['CREATED', 'PENDING', 'FAILED'];
+
 /** Compares two hex digests without leaking their contents through timing. */
 function safeEqualHex(a: string, b: string): boolean {
   const left = Buffer.from(a, 'hex');
@@ -219,10 +227,11 @@ export function verifyWebhookSignature(rawBody: string, signature: string): bool
 /**
  * Marks an order paid and grants access, exactly once.
  *
- * Both the browser callback and the webhook call this, usually within a second
- * of each other, and the webhook may arrive several times. The conditional
- * `updateMany` on status is the gate: whichever call flips CREATED/PENDING to
- * PAID does the work, and the rest see zero rows updated and stop.
+ * The browser callback, the webhook and the check with Razorpay all call this,
+ * often within a second of each other, and the webhook may arrive several
+ * times. The conditional `updateMany` on status is the gate: whichever call
+ * flips an unpaid order to PAID does the work, and the rest see zero rows
+ * updated and stop.
  *
  * Returns true when this call was the one that granted access.
  */
@@ -253,7 +262,7 @@ export async function fulfilOrder(input: {
 
   // Compare-and-set. Only one caller can move the order out of an unpaid state.
   const claimed = await db.order.updateMany({
-    where: { id: order.id, status: { in: ['CREATED', 'PENDING'] } },
+    where: { id: order.id, status: { in: UNPAID_STATUSES } },
     data: { status: 'PAID', paidAt: new Date() },
   });
 

@@ -41,6 +41,15 @@ export async function register() {
       logger.error({ failed: pragmas.failed }, 'Some SQLite pragmas could not be applied');
     }
 
+    // Unpaid orders are checked with Razorpay itself every few minutes, so a
+    // payment whose confirmation went missing still opens the student's access.
+    // Its own NEXT_RUNTIME check, for the same reason as the translation
+    // worker's: the Razorpay library cannot be bundled for the edge.
+    if (process.env.NEXT_RUNTIME === 'nodejs') {
+      const { startPaymentSync } = await import('@/server/services/payment-sync');
+      startPaymentSync();
+    }
+
     logger.info(
       {
         env: env.NODE_ENV,
