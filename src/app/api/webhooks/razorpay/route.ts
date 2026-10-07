@@ -46,7 +46,10 @@ export async function POST(request: Request) {
   const rawBody = await request.text();
 
   if (!signature || !verifyWebhookSignature(rawBody, signature)) {
-    webhookLog().lastRefusedAt = new Date();
+    // Noted for the orders page only when it looks like Razorpay sent it.
+    // Anyone can post to this address, and a scanner's junk must not read as
+    // Razorpay's messages being refused.
+    if (signature && looksLikeRazorpay(rawBody)) webhookLog().lastRefusedAt = new Date();
     logger.warn({ event: 'razorpay.webhook.rejected' }, 'Webhook signature did not verify');
     return new Response('invalid signature', { status: 400 });
   }
@@ -123,6 +126,20 @@ export async function POST(request: Request) {
   }
 
   return new Response('ok', { status: 200 });
+}
+
+/** An unverified body with the shape of a Razorpay delivery: an event for a Razorpay account. */
+function looksLikeRazorpay(rawBody: string): boolean {
+  try {
+    const body = JSON.parse(rawBody) as { entity?: unknown; account_id?: unknown };
+    return (
+      body.entity === 'event' &&
+      typeof body.account_id === 'string' &&
+      body.account_id.startsWith('acc_')
+    );
+  } catch {
+    return false;
+  }
 }
 
 async function isOurOrder(razorpayOrderId: string): Promise<boolean> {

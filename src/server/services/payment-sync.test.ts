@@ -275,6 +275,7 @@ describe('the Razorpay webhook', () => {
 
   const capturedEvent = (orderId: string) => ({
     entity: 'event',
+    account_id: 'acc_TEST123',
     event: 'payment.captured',
     payload: { payment: { entity: { id: 'pay_w', order_id: orderId, method: 'upi' } } },
   });
@@ -299,5 +300,27 @@ describe('the Razorpay webhook', () => {
     expect(response.status).toBe(400);
     expect(o.status).toBe('PENDING');
     expect(webhookLog().lastRefusedAt!.getTime()).toBeGreaterThanOrEqual(before);
+  });
+
+  it('does not mistake junk posted to the address for Razorpay being refused', async () => {
+    webhookLog().lastRefusedAt = null;
+
+    const junk = await webhook(delivery({ event: 'probe' }, 'not_the_secret'));
+    const unsigned = await webhook(
+      new Request('https://avkenvisions.com/api/webhooks/razorpay', {
+        method: 'POST',
+        body: JSON.stringify(capturedEvent('order_x')),
+      }),
+    );
+    const notJson = await webhook(
+      new Request('https://avkenvisions.com/api/webhooks/razorpay', {
+        method: 'POST',
+        headers: { 'x-razorpay-signature': 'deadbeef' },
+        body: 'hello',
+      }),
+    );
+
+    expect([junk.status, unsigned.status, notJson.status]).toEqual([400, 400, 400]);
+    expect(webhookLog().lastRefusedAt).toBeNull();
   });
 });
