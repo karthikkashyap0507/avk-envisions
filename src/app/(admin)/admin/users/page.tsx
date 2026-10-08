@@ -9,6 +9,7 @@ import { UserTable } from '@/features/admin/user-table';
 import { enforceAdminPermission } from '@/server/auth/guards';
 import { PERMISSIONS } from '@/server/auth/permissions';
 import { listUsers } from '@/server/services/admin-service';
+import { boughtCourses } from '@/server/services/purchased-service';
 
 export const metadata: Metadata = {
   title: 'Users',
@@ -134,6 +135,7 @@ export default async function AdminUsersPage({
                 createdAt: user.createdAt.toISOString(),
                 attempts: user._count.attempts,
                 orders: user._count.orders,
+                courses: boughtCourses(user.entitlements),
               }))}
             />
           </CardContent>

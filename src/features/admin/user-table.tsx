@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ApiClientError, api } from '@/lib/api-client';
 import { formatDate } from '@/lib/utils';
+import type { BoughtCourse } from '@/server/services/purchased-service';
 
 /**
  * User list with inline actions.
@@ -40,6 +41,7 @@ export interface AdminUserRow {
   createdAt: string;
   attempts: number;
   orders: number;
+  courses: BoughtCourse[];
 }
 
 export function UserTable({ rows, currentUserId }: { rows: AdminUserRow[]; currentUserId: string }) {
@@ -109,6 +111,44 @@ export function UserTable({ rows, currentUserId }: { rows: AdminUserRow[]; curre
                 {formatDate(user.createdAt, 'short')}
                 {user.lastLoginAt && ` · last seen ${formatDate(user.lastLoginAt, 'short')}`}
               </p>
+
+              {(user.courses.length > 0 || user.role === 'STUDENT') && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  {user.courses.length === 0 ? (
+                    <span className="text-xs text-muted-foreground">No courses bought</span>
+                  ) : (
+                    user.courses.map((course) => (
+                      <Badge
+                        key={course.name}
+                        size="sm"
+                        variant={course.expired ? 'muted' : course.givenByAdmin ? 'info' : 'success'}
+                        title={
+                          course.givenByAdmin
+                            ? 'Paid outside the site and given access by an admin'
+                            : 'Bought on the site'
+                        }
+                      >
+                        {/* One run of text, so a long name wraps as a line rather than as columns. */}
+                        <span>
+                          {course.name}
+                          {course.givenByAdmin && (
+                            <>
+                              {' '}
+                              <span className="whitespace-nowrap opacity-80">· given by admin</span>
+                            </>
+                          )}
+                          {course.expired && (
+                            <>
+                              {' '}
+                              <span className="whitespace-nowrap">· expired</span>
+                            </>
+                          )}
+                        </span>
+                      </Badge>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="hidden shrink-0 text-right text-xs text-muted-foreground sm:block">

@@ -160,6 +160,68 @@ export async function getPurchasedCourses(userId: string): Promise<PurchasedCour
   return courses;
 }
 
+/** One course on the admin Users list. */
+export interface BoughtCourse {
+  /** What the course is sold as. */
+  name: string;
+  /** Paid for outside the site and given by an admin, rather than bought at checkout. */
+  givenByAdmin: boolean;
+  /** Access has run out. */
+  expired: boolean;
+}
+
+/**
+ * The courses a student has bought, for the admin Users list, oldest first.
+ *
+ * Read from entitlements rather than orders: a student who paid by UPI outside
+ * the site holds an ADMIN_GRANT and no order, and is still a buyer. Expired
+ * access stays listed, marked, since the student did buy it.
+ *
+ * Named the way the courses are sold, so the combo shows as the one thing the
+ * student paid for rather than the three courses it opens. A single
+ * previous-year paper keeps its own name, so access to one year does not read
+ * as the whole bundle.
+ */
+export function boughtCourses(
+  rows: ReadonlyArray<{
+    sourceType: string;
+    expiresAt: Date | null;
+    testSeries: { slug: string; name: string } | null;
+  }>,
+  now: Date = new Date(),
+): BoughtCourse[] {
+  const byName = new Map<string, BoughtCourse>();
+
+  for (const row of rows) {
+    const series = row.testSeries;
+    if (!series) continue;
+
+    const singleYear = series.slug.startsWith(PYQ_SERIES_PREFIX) && series.slug !== PYQ_BUNDLE_SLUG;
+    const name = singleYear ? series.name : destinationFor(series.slug, series.name).name;
+    const course: BoughtCourse = {
+      name,
+      givenByAdmin: row.sourceType !== 'PURCHASE',
+      expired: row.expiresAt !== null && row.expiresAt <= now,
+    };
+
+    // Held twice - bought and also given by hand - it was bought if either
+    // was, and is live if either is.
+    const seen = byName.get(name);
+    byName.set(
+      name,
+      seen
+        ? {
+            name,
+            givenByAdmin: seen.givenByAdmin && course.givenByAdmin,
+            expired: seen.expired && course.expired,
+          }
+        : course,
+    );
+  }
+
+  return [...byName.values()];
+}
+
 export interface AvailableCourse {
   id: string;
   name: string;

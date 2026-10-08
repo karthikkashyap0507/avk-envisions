@@ -700,6 +700,17 @@ export async function listUsers(
         lastLoginAt: true,
         createdAt: true,
         _count: { select: { attempts: true, orders: true } },
+        // What they bought: at checkout, or paid outside the site and given
+        // by hand.
+        entitlements: {
+          where: { revokedAt: null, sourceType: { in: ['PURCHASE', 'ADMIN_GRANT'] } },
+          orderBy: { createdAt: 'asc' },
+          select: {
+            sourceType: true,
+            expiresAt: true,
+            testSeries: { select: { slug: true, name: true } },
+          },
+        },
       },
     }),
     db.user.count({ where }),
