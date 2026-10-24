@@ -5,6 +5,7 @@ import {
   BookOpenCheck,
   Flame,
   Gauge,
+  Phone,
   PlayCircle,
   Target,
   TrendingDown,
@@ -18,6 +19,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { StatCard } from '@/components/ui/stat-card';
 import { EmptyState } from '@/components/ui/states';
+import { SUPPORT_PHONE } from '@/lib/enums';
 import { formatDate, formatDuration, formatNumber, formatPaise, ordinal } from '@/lib/utils';
 import { enforceStudent } from '@/server/auth/guards';
 import {
@@ -91,6 +93,27 @@ export default async function DashboardPage() {
               : 'Ready for your next challenge?'}
         </p>
       </header>
+
+      {/* Help line ------------------------------------------------------- */}
+      {/* Only reachable from here, behind the student login — this is support
+          for people who already have an account, so it is kept off the public
+          pages. A tel: link so a tap dials it straight from a phone. */}
+      <a
+        href={`tel:${SUPPORT_PHONE.tel}`}
+        className="flex items-center gap-4 rounded-xl border border-primary/30 bg-gradient-to-br from-primary-muted/70 to-primary-muted/25 p-4 shadow-subtle transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
+      >
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+          <Phone className="size-5" aria-hidden="true" />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-sm font-medium text-muted-foreground">
+            Need help? Call us
+          </span>
+          <span className="mt-0.5 block text-xl font-bold tracking-tight text-primary sm:text-2xl">
+            {SUPPORT_PHONE.display}
+          </span>
+        </span>
+      </a>
 
       {/* What they have bought ------------------------------------------- */}
       {purchased.length > 0 && (

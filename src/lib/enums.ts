@@ -634,6 +634,20 @@ export const KAS_REVISION_FROM = '2026-11-03';
 export const KAS_REVISION_TO = '2026-11-14';
 
 /**
+ * The number a student can call for help.
+ *
+ * Shown only on the signed-in dashboard — this is support for people who
+ * already have an account, not a public contact line, so it is kept off the
+ * marketing pages on purpose.
+ */
+export const SUPPORT_PHONE = {
+  /** Ten digits, grouped the way it is dialled within India. */
+  display: '94800 14519',
+  /** E.164, for the `tel:` link so it dials correctly from any dialler. */
+  tel: '+919480014519',
+} as const;
+
+/**
  * How long before its scheduled time a paper opens.
  *
  * Papers are written and uploaded well in advance, so a scheduled test must

@@ -13,7 +13,6 @@ import {
 
 import { EmptyState } from '@/components/ui/states';
 import { KAS_50_DAYS } from '@/lib/data/kas-50-days-schedule';
-import { EnrolmentBar } from '@/features/marketing/enrolment-bar';
 import { BuyButton } from '@/features/checkout/buy-button';
 import {
   DAILY_CHALLENGE_SLUG,
@@ -27,21 +26,6 @@ import { db } from '@/server/db';
 import { getChallenge, type ChallengeDay } from '@/server/services/daily-challenge-service';
 import { hasEntitlement } from '@/server/services/entitlement-service';
 import { countEnrolledMany, resolvePricing } from '@/server/services/pricing-service';
-
-/**
- * The enrolment figure shown on the KAS-50 badge.
- *
- * A FIXED number, not a live count, set by hand on 2026-09-16. It does not
- * move when someone joins and it does not read the database.
- *
- * Deliberately kept out of `resolvePricing`: the ladder must keep resolving
- * against the real `enrolledCount`, or the page would quote one price while
- * checkout charged another. This constant only ever reaches the badge.
- *
- * Update it by editing this line, and if it stops resembling the real
- * enrolment, delete it and pass the live count instead.
- */
-const KAS_50_SHOWN_ENROLMENT = { count: 34, limit: 50 } as const;
 
 export const metadata: Metadata = {
   title: 'KAS-50 (Daily tests)',
@@ -270,18 +254,6 @@ export default async function FiftyDaysPage({
               You have joined KAS-50 (Daily tests).
             </p>
           )}
-
-          {/* How full the early price is, the same bar the paid series shows.
-              Outside the purchase panel so it stays visible to someone who has
-              already joined.
-
-              Unlike the paid series, which reads its live enrolment, this one
-              shows the fixed KAS_50_SHOWN_ENROLMENT figure. */}
-          <EnrolmentBar
-            count={KAS_50_SHOWN_ENROLMENT.count}
-            limit={KAS_50_SHOWN_ENROLMENT.limit}
-            className="w-full max-w-none sm:max-w-none"
-          />
 
           <p className="rounded-xl bg-primary-muted/60 px-4 py-3 text-sm font-semibold leading-snug">
           <Trophy className="mb-1 size-5 text-primary" aria-hidden="true" />
