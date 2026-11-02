@@ -58,8 +58,8 @@ const PLANS: Plan[] = [
   // against buying the three separately, computed from their live prices.
   { slug: 'kas-complete-practice-combo', price: 249, earlyBird: null, earlyBirdLimit: null },
 
-  // KAS50 — ₹99 for the first 50, then ₹299.
-  { slug: 'kas-50-questions-50-days', price: 299, earlyBird: 99, earlyBirdLimit: 50 },
+  // KAS50 — a flat ₹199 for everyone, no early-bird ladder.
+  { slug: 'kas-50-questions-50-days', price: 199, earlyBird: null, earlyBirdLimit: null },
 
   // Full-length mocks — ₹99 for the first 50, then ₹299.
   { slug: 'kas-prelims-paid-test-series', price: 199, earlyBird: 99, earlyBirdLimit: 50 },
