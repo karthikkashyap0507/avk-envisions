@@ -21,34 +21,6 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-# --- One-off: hand the data over to the new server ---------------------------
-# The site moved to a new VM. This old VM holds the only copy of the database
-# and nobody can log in to it, but it still deploys from GitHub. So this block
-# stops the old app, packs the data directory and .env, and uploads them to the
-# new project's private bucket through a write-only link that expires within
-# the hour. It then turns off this VM's auto-deploy, so nothing more is written
-# or rebuilt here. It never runs on the new VM, which carries the .new-server
-# marker. Remove this block once the move is done.
-if [[ ! -f "$DATA_DIR/.new-server" && -f "$DATA_DIR/production.db" ]]; then
-  echo "==> Handing the data over to the new server"
-  systemctl stop avkvisions || true
-  /usr/local/bin/avk-backup
-  STAGE="/tmp/avk-handover"
-  rm -rf "$STAGE" && mkdir -p "$STAGE"
-  cp -a "$(ls -t "$DATA_DIR"/backups/avk-*.db.gz | head -1)" "$STAGE/"
-  cp -a "$APP_DIR/.env" "$STAGE/env"
-  # The translation models are re-downloaded on the new VM, and the old
-  # backups are not needed: the snapshot just taken is in the stage.
-  tar czf /tmp/avk-handover.tgz \
-    -C / --exclude=var/lib/avkvisions/backups --exclude=var/lib/avkvisions/models var/lib/avkvisions \
-    -C /tmp avk-handover
-  curl -fsS --retry 3 -X PUT --upload-file /tmp/avk-handover.tgz 'https://avk-backups-4f155b36.storage.googleapis.com/migration/old-server.tgz?x-goog-signature=1ee5855d6c449863cf718f6acb612a3bb969e5602790cdd862b35cc326cf1e28dd6ed61ad742558a33c209e5fc23c51938d8d955214e7f35712fe4d8680a3c5ae93eb8107f378d7b919f0252b5176764e83278bdbe0508d0ac64eead0137f2d3a53d2739afcf3f5f6bea9fdef8ed2a912317a83b375c6dcc723808f5e86c6173126aaf78dee369847b1f3124c0384744c443c41abf0a1bfe76c7428cafadfbf8d879dd6bcb5b50e34f3bea2f308e9898942dc72b4406645a6a1f200c6253f4cf6373a8a6ee6d07824f53432610389d890196d53aa256af44ced5bc998c373be1c309e10cef262953f58f7f144132e256628c3a8b99220280a5bb9972de71af89&x-goog-algorithm=GOOG4-RSA-SHA256&x-goog-credential=avk-migration%40project-4f155b36-4e1e-4682-879.iam.gserviceaccount.com%2F20261102%2Fasia-south1%2Fstorage%2Fgoog4_request&x-goog-date=20261102T075833Z&x-goog-expires=3600&x-goog-signedheaders=host'
-  rm -rf "$STAGE" /tmp/avk-handover.tgz
-  systemctl disable --now avk-auto-deploy.timer || true
-  echo "==> Handed over. The old app is stopped and auto-deploy is off."
-  exit 0
-fi
-
 # --- Refuse to deploy with a broken database path ----------------------------
 # A relative DATABASE_URL resolves inside $APP_DIR, which this script replaces
 # on every deploy. That would silently delete every student account.
