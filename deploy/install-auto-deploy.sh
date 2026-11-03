@@ -30,8 +30,11 @@ Wants=network-online.target
 Type=oneshot
 ExecStart=/usr/bin/env bash /opt/avkvisions/deploy/auto-deploy.sh
 # The deploy stops and starts avkvisions.service, and a build on this VM has
-# taken over ten minutes on a cold npm cache.
-TimeoutStartSec=1800
+# taken over ten minutes on a cold npm cache. The content scripts after it
+# take as long again — backfill-figures re-reads every previous-year PDF — and
+# a 30-minute limit killed the 116a6c4 deploy part-way through them, with the
+# site stopped, then retried into the same wall every half hour.
+TimeoutStartSec=5400
 UNIT
 
 cat > /etc/systemd/system/avk-auto-deploy.timer <<'UNIT'
