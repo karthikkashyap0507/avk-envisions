@@ -1,4 +1,4 @@
-import { COMBO_INCLUDES, PYQ_BUNDLE_SLUG } from '@/lib/enums';
+import { COMBO_INCLUDES, FDA_SDA_SERIES_HREF, FDA_SDA_SERIES_SLUG, PYQ_BUNDLE_SLUG } from '@/lib/enums';
 import 'server-only';
 
 import { cache } from 'react';
@@ -27,7 +27,8 @@ export type TrackKey =
   | 'PYQ'
   | 'COMBO'
   | 'CHAPTERWISE'
-  | 'DAILY_CHALLENGE';
+  | 'DAILY_CHALLENGE'
+  | 'KEA_FDA_SDA';
 
 export interface TrackSummary {
   key: TrackKey;
@@ -149,6 +150,25 @@ const TRACK_META: Record<TrackKey, Omit<TrackSummary, 'seriesCount' | 'testCount
       'All subject-wise tests included',
     ],
   },
+  KEA_FDA_SDA: {
+    key: 'KEA_FDA_SDA',
+    title: 'KEA FDA / SDA Test Series',
+    blurb: '11 sectional tests and 4 full-length mocks for KEA FDA & SDA 2026.',
+    // The series itself: it is sold on its timetable, which is what that
+    // page shows, the same as the KAS full-length tests.
+    href: FDA_SDA_SERIES_HREF,
+    ctaLabel: 'Explore FDA / SDA tests',
+    iconName: 'Landmark',
+    ribbon: 'New',
+    comingSoon: false,
+    benefits: [
+      '11 sectional tests, one for each subject',
+      '4 full-length mock tests — Paper 1 and Paper 2',
+      '100 questions, 100 marks, 2 hours per test',
+      '+1 for a correct answer, −0.25 for a wrong one',
+      'Questions based on recently conducted KEA examinations',
+    ],
+  },
   CHAPTERWISE: {
     key: 'CHAPTERWISE',
     title: 'Chapter-wise Practice',
@@ -182,6 +202,9 @@ const TRACK_ORDER: TrackKey[] = [
   'COMBO',
   'DAILY_CHALLENGE',
   'PAID_SERIES',
+  // A different exam from everything above it, so it follows the KAS tracks
+  // rather than sitting among them. The homepage gives it a banner of its own.
+  'KEA_FDA_SDA',
   'CHAPTERWISE',
 ];
 
@@ -241,6 +264,38 @@ export const getCourseTracks = cache(async (): Promise<TrackSummary[]> => {
     // card would read as a free product, so it is left out rather than shown
     // at ₹0.
     .filter((track) => track.key !== 'COMBO' || track.fromPriceInPaise > 0);
+});
+
+// ---------------------------------------------------------------------------
+// KEA FDA / SDA
+// ---------------------------------------------------------------------------
+
+export interface FdaSdaSummary {
+  href: string;
+  sectional: number;
+  fullLength: number;
+}
+
+/**
+ * What the homepage banner says about the FDA / SDA series.
+ *
+ * Counted from the series' own tests, drafts included — it is sold on its
+ * timetable, so the papers still being written are part of what is on offer.
+ * Null until the series is published, so the banner never advertises a page
+ * that would 404.
+ */
+export const getFdaSdaSummary = cache(async (): Promise<FdaSdaSummary | null> => {
+  const series = await db.testSeries.findFirst({
+    where: { slug: FDA_SDA_SERIES_SLUG, status: 'PUBLISHED', deletedAt: null },
+    select: { tests: { where: { deletedAt: null }, select: { category: true } } },
+  });
+  if (!series) return null;
+
+  return {
+    href: FDA_SDA_SERIES_HREF,
+    sectional: series.tests.filter((t) => t.category !== 'FULL_MOCK').length,
+    fullLength: series.tests.filter((t) => t.category === 'FULL_MOCK').length,
+  };
 });
 
 // ---------------------------------------------------------------------------

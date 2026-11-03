@@ -61,6 +61,13 @@ const TRACKS: Record<string, { key: TrackKey; title: string; eyebrow: string; bl
     blurb:
       'One fifty-question paper a day for fifty days, with answers and explanations the moment you finish and your streak tracked throughout.',
   },
+  'kea-fda-sda': {
+    key: 'KEA_FDA_SDA',
+    title: 'KEA FDA / SDA Test Series',
+    eyebrow: 'KEA FDA / SDA 2026',
+    blurb:
+      'Eleven sectional tests and four full-length mocks on a published timetable. Every paper has 100 questions in 2 hours: +1 for a correct answer, −0.25 for a wrong one.',
+  },
   'chapterwise': {
     key: 'CHAPTERWISE',
     title: 'KPSC KAS Prelims — Chapter-wise Practice',
@@ -140,7 +147,7 @@ function ScheduleAction({ row }: { row: ScheduleRow }) {
 /** Tracks with a schedule document behind the button. */
 // Tracks with a published timetable document to open. The free series has
 // none — its tests can be attempted on any day, in any order.
-const HAS_TIMETABLE = new Set(['paid-test-series', 'kas-50']);
+const HAS_TIMETABLE = new Set(['paid-test-series', 'kas-50', 'kea-fda-sda']);
 
 export default async function TrackPage({ params }: { params: Promise<{ track: string }> }) {
   const { track } = await params;

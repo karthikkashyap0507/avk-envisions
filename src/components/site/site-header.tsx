@@ -17,6 +17,7 @@ import {
   Menu,
   PenSquare,
   Search,
+  ScrollText,
   Tag,
   Target,
   CalendarDays,
@@ -28,6 +29,7 @@ import { NavPanel } from '@/components/site/nav-panel';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api-client';
+import { FDA_SDA_SERIES_HREF } from '@/lib/enums';
 import { cn } from '@/lib/utils';
 
 /**
@@ -37,9 +39,24 @@ import { cn } from '@/lib/utils';
  * "KAS Full Length Tests" — so the site reads the way their students hear it
  * described, even where that differs from the page titles.
  */
-const NAV_LINKS = [
+const NAV_LINKS: {
+  href: string;
+  label: string;
+  icon: typeof Home;
+  badge?: string;
+  highlight?: boolean;
+}[] = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/courses', label: 'Courses', icon: BookOpen },
+  // Second exam, newly launched: tinted and badged so it is seen before the
+  // KAS list a returning student scrolls past.
+  {
+    href: FDA_SDA_SERIES_HREF,
+    label: 'KEA FDA / SDA Test Series',
+    icon: ScrollText,
+    badge: 'NEW',
+    highlight: true,
+  },
   // Same order as the cards everywhere else.
   { href: '/pyq', label: 'KAS PYQ Tests', icon: FileText },
   { href: '/test-series/kas-prelims-free-test-series', label: 'Free Tests', icon: Gift },
@@ -50,7 +67,7 @@ const NAV_LINKS = [
   { href: '/pricing', label: 'Pricing and Payment Details', icon: Tag },
   { href: '/success-stories', label: 'Results', icon: BarChart3 },
   { href: '/blog', label: 'Blog', icon: PenSquare },
-] as const;
+];
 
 export interface SiteHeaderProps {
   /** Present when a session exists, so the CTA reflects signed-in state. */
@@ -161,6 +178,8 @@ export function SiteHeader({ session }: SiteHeaderProps) {
             href: link.href,
             label: link.label,
             icon: <link.icon className="size-[1.15rem]" />,
+            badge: link.badge,
+            highlight: link.highlight,
           }))}
           session={session}
           onSignOut={signOut}

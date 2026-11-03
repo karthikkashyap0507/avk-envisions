@@ -79,7 +79,11 @@ async function main() {
     },
   });
 
-  const subjects = await db.subject.findMany({ select: { id: true, name: true } });
+  // This exam's subjects only: KEA FDA / SDA shares names such as "Geography".
+  const subjects = await db.subject.findMany({
+    where: { exam: { slug: 'kas' } },
+    select: { id: true, name: true },
+  });
   const subjectId = new Map(subjects.map((s) => [s.name, s.id]));
 
   let created = 0;

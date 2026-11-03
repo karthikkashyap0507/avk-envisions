@@ -69,8 +69,12 @@ async function main() {
       `\n  day 1 opens ${day1.toDateString()}\n`,
   );
 
-  const exam = await db.exam.findFirst({ select: { id: true } });
-  const subject = await db.subject.findFirst({ select: { id: true } });
+  // KAS by slug: with a second exam, "the first exam" is no longer KAS by
+  // definition, and nor is the first subject.
+  const exam = await db.exam.findFirst({ where: { slug: 'kas' }, select: { id: true } });
+  const subject = exam
+    ? await db.subject.findFirst({ where: { examId: exam.id }, select: { id: true } })
+    : null;
   if (!exam || !subject) throw new Error('No exam or subject. Run the base seed first.');
 
   const series = await db.testSeries.upsert({

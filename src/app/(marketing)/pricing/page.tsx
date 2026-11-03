@@ -5,7 +5,13 @@ import { ArrowRight, CheckCircle2, Clock, Flame, Gift, Target, TrendingUp, Troph
 import { Card, CardContent } from '@/components/ui/card';
 import { BuyButton } from '@/features/checkout/buy-button';
 import { cn, formatPaise } from '@/lib/utils';
-import { COMBO_INCLUDES, COMBO_SLUG, PYQ_BUNDLE_SLUG } from '@/lib/enums';
+import {
+  COMBO_INCLUDES,
+  COMBO_SLUG,
+  FDA_SDA_SERIES_HREF,
+  FDA_SDA_SERIES_SLUG,
+  PYQ_BUNDLE_SLUG,
+} from '@/lib/enums';
 import { db } from '@/server/db';
 import { countEnrolledMany, resolvePricing } from '@/server/services/pricing-service';
 
@@ -127,6 +133,20 @@ const PLANS: PlanCard[] = [
     accent: 'bg-amber-500 text-white',
     button: 'bg-amber-500 hover:bg-amber-600 text-white',
     ribbon: 'bg-orange-500',
+  },
+  {
+    // A different exam from the KAS plans above, priced on its own.
+    slug: FDA_SDA_SERIES_SLUG,
+    title: 'KEA FDA / SDA Test Series',
+    blurb: '11 sectional tests and 4 full-length mocks for KEA FDA & SDA 2026.',
+    benefits: ['100 questions · 2 hours', '+1 / −0.25 marking'],
+    cta: 'Enrol Now',
+    href: FDA_SDA_SERIES_HREF,
+    tint: 'border-purple-200 bg-purple-50/60 dark:border-purple-900/40 dark:bg-purple-950/20',
+    accent: 'bg-purple-600 text-white',
+    button: 'bg-purple-600 hover:bg-purple-700 text-white',
+    ribbon: 'bg-purple-600',
+    badge: 'New',
   },
   {
     // Priced per subject, unlike the previous-year papers. The card must say

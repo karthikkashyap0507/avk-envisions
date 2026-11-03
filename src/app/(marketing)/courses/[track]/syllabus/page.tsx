@@ -35,6 +35,13 @@ const TRACKS: Record<string, { key: TrackKey; title: string; schedulePdf?: strin
     // of those papers are not written yet.
     schedulePdf: '/api/schedule/50-days',
   },
+  'kea-fda-sda': {
+    key: 'KEA_FDA_SDA',
+    title: 'KEA FDA / SDA Test Series',
+    // The timetable as announced: sectional dates, the two mock Sundays and
+    // the revision window, which the rows alone do not show.
+    schedulePdf: '/api/schedule/fda-sda',
+  },
 };
 
 export const dynamic = 'force-dynamic';

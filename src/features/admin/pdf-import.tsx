@@ -22,7 +22,7 @@ import { Input, Textarea } from '@/components/ui/input';
 import { FormField } from '@/components/ui/label';
 import { InlineError } from '@/components/ui/states';
 import { ApiClientError, api } from '@/lib/api-client';
-import { MARKS_PER_QUESTION, NEGATIVE_MARKS_PER_QUESTION } from '@/lib/marking';
+import { markingSchemeFor } from '@/lib/marking';
 import { cn } from '@/lib/utils';
 import { DestinationPicker, type PickerGroup } from '@/features/admin/destination-picker';
 
@@ -91,12 +91,19 @@ export interface ImportTarget {
     id: string;
     name: string;
     shortName: string;
+    /** Decides the default marks — see `markingSchemeFor`. */
+    slug: string;
     subjects: { id: string; name: string }[];
   }[];
-  series: { id: string; name: string; track: string }[];
+  series: { id: string; name: string; track: string; examId: string }[];
   tests: { id: string; title: string }[];
   /** Existing tests grouped by series, for the destination picker. */
   groups: PickerGroup[];
+  /**
+   * Where to start, when opened from a paper ("Import PDF" on a series page):
+   * that paper ticked, and its exam and subject chosen.
+   */
+  initial?: { examId: string; subjectId: string; testIds: string[] };
 }
 
 interface CommitResponse {
@@ -107,7 +114,7 @@ interface CommitResponse {
 
 type Step = 'upload' | 'review' | 'done';
 
-export function PdfImport({ exams, series, tests, groups }: ImportTarget) {
+export function PdfImport({ exams, series, tests, groups, initial }: ImportTarget) {
   const router = useRouter();
 
   const [step, setStep] = React.useState<Step>('upload');
@@ -120,13 +127,16 @@ export function PdfImport({ exams, series, tests, groups }: ImportTarget) {
   const [result, setResult] = React.useState<CommitResponse | null>(null);
 
   // --- Destination -------------------------------------------------------
-  const [examId, setExamId] = React.useState(exams[0]?.id ?? '');
+  const [examId, setExamId] = React.useState(initial?.examId ?? exams[0]?.id ?? '');
   // Starts empty on purpose. It used to default to the exam's first subject,
   // Indian Polity, so every paper imported without touching this dropdown had
   // all its questions filed under Polity — history, geography and economy
-  // included — and printed that way on every exported PDF.
-  const [subjectId, setSubjectId] = React.useState('');
-  const [target, setTarget] = React.useState<'NEW_TEST' | 'EXISTING_TEST' | 'BANK_ONLY'>('NEW_TEST');
+  // included — and printed that way on every exported PDF. A paper opened from
+  // a series page that already names its subject is the exception.
+  const [subjectId, setSubjectId] = React.useState(initial?.subjectId ?? '');
+  const [target, setTarget] = React.useState<'NEW_TEST' | 'EXISTING_TEST' | 'BANK_ONLY'>(
+    initial ? 'EXISTING_TEST' : 'NEW_TEST',
+  );
   /**
    * Existing tests this import should also fill.
    *
@@ -134,20 +144,42 @@ export function PdfImport({ exams, series, tests, groups }: ImportTarget) {
    * existing ones in the same commit, because the questions are created once
    * and linked to each.
    */
-  const [pickedTestIds, setPickedTestIds] = React.useState<string[]>([]);
+  const [pickedTestIds, setPickedTestIds] = React.useState<string[]>(initial?.testIds ?? []);
   const [testId, setTestId] = React.useState(tests[0]?.id ?? '');
   const [title, setTitle] = React.useState('');
   const [testSeriesId, setTestSeriesId] = React.useState('');
   const [category, setCategory] = React.useState('PREVIOUS_YEAR');
   const [accessType, setAccessType] = React.useState('FREE');
   const [durationMinutes, setDurationMinutes] = React.useState(120);
-  const [marks, setMarks] = React.useState(MARKS_PER_QUESTION);
-  const [negativeMarks, setNegativeMarks] = React.useState(NEGATIVE_MARKS_PER_QUESTION);
+  // The exam's own scheme, and again whenever the exam changes: an FDA paper
+  // imported at the KAS default would score out of 200 instead of 100.
+  const startScheme = markingSchemeFor(exams.find((e) => e.id === examId)?.slug);
+  const [marks, setMarks] = React.useState(startScheme.marks);
+  const [negativeMarks, setNegativeMarks] = React.useState(startScheme.negativeMarks);
   const [source, setSource] = React.useState('');
   const [examYear, setExamYear] = React.useState<string>('');
   const [publish, setPublish] = React.useState(false);
 
   const exam = exams.find((e) => e.id === examId);
+  const scheme = markingSchemeFor(exam?.slug);
+
+  /**
+   * A destination from another exam, if one is chosen.
+   *
+   * Refused rather than allowed: the questions are filed under the exam picked
+   * above and carry its marks, so sending them to another exam's paper scores
+   * that paper on the wrong scheme. The server refuses it too.
+   */
+  const otherExamDestination = React.useMemo(() => {
+    const chosen = groups.flatMap((g) => g.tests).filter((t) => pickedTestIds.includes(t.id));
+    const wrongTest = chosen.find((t) => t.examId && t.examId !== examId);
+    if (wrongTest) return wrongTest.title;
+    if (target === 'NEW_TEST' && testSeriesId) {
+      const chosenSeries = series.find((s) => s.id === testSeriesId);
+      if (chosenSeries && chosenSeries.examId !== examId) return chosenSeries.name;
+    }
+    return null;
+  }, [groups, pickedTestIds, examId, target, testSeriesId, series]);
 
   // Sending one paper to a free and a paid test publishes the paid content for
   // nothing. Worth saying out loud rather than refusing: an admin may well
@@ -180,7 +212,9 @@ export function PdfImport({ exams, series, tests, groups }: ImportTarget) {
   const blocker: string | null =
     questions.length === 0
       ? 'There are no questions to import'
-      : !subjectId
+      : otherExamDestination
+        ? `“${otherExamDestination}” belongs to another exam — change the exam above, or untick it`
+        : !subjectId
         ? 'Choose a subject for these questions'
         : unresolved > 0
           ? `${unresolved} question${unresolved === 1 ? '' : 's'} still need${unresolved === 1 ? 's' : ''} an answer`
@@ -646,6 +680,9 @@ export function PdfImport({ exams, series, tests, groups }: ImportTarget) {
                   const next = exams.find((e) => e.id === event.target.value);
                   setExamId(event.target.value);
                   setSubjectId('');
+                  const nextScheme = markingSchemeFor(next?.slug);
+                  setMarks(nextScheme.marks);
+                  setNegativeMarks(nextScheme.negativeMarks);
                 }}
                 className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"
               >
@@ -776,7 +813,11 @@ export function PdfImport({ exams, series, tests, groups }: ImportTarget) {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-4">
-            <FormField label="Marks" htmlFor="i-marks">
+            <FormField
+              label="Marks"
+              htmlFor="i-marks"
+              hint={`${exam?.shortName ?? 'This exam'}: +${scheme.marks} / −${scheme.negativeMarks}`}
+            >
               <Input
                 type="number"
                 step="0.25"

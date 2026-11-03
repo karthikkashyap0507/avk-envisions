@@ -1,3 +1,4 @@
+import { AppError } from '@/lib/api';
 import { AUDIT_ACTIONS, audit } from '@/server/audit';
 import { parseBody, route } from '@/server/api-handler';
 import { requireAdmin } from '@/server/auth/guards';
@@ -20,6 +21,22 @@ export const POST = route(async ({ request, ip }) => {
     where: { id: input.examId },
     select: { shortName: true },
   });
+  // Checked before anything is written: a question for another exam's paper
+  // would carry the wrong marks onto it, and refusing after creating it would
+  // leave a stray question in the bank.
+  if (input.attachToTestId) {
+    const paper = await db.test.findFirst({
+      where: { id: input.attachToTestId, deletedAt: null },
+      select: { title: true, examId: true },
+    });
+    if (paper && paper.examId !== input.examId) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        `“${paper.title}” belongs to another exam. Choose that exam for this question.`,
+      );
+    }
+  }
+
   const count = await db.question.count({ where: { examId: input.examId } });
 
   let code = `${exam.shortName}-Q${String(count + 1).padStart(4, '0')}`;

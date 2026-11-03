@@ -351,6 +351,9 @@ export const getTestSeriesBySlug = cache(async (slug: string) => {
           startDate: true,
           synopsisFileName: true,
           paperNumber: true,
+          // Drafts are listed too, so the schedule needs to tell them apart.
+          status: true,
+          description: true,
         },
       },
       _count: { select: { tests: { where: { status: 'PUBLISHED', deletedAt: null } } } },

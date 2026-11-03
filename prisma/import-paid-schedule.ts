@@ -257,7 +257,11 @@ async function main() {
   });
   if (!series) throw new Error('The paid series is missing. Run the catalogue seed first.');
 
-  const subjects = await db.subject.findMany({ select: { id: true, name: true } });
+  // The series' own exam only: KEA FDA / SDA has a "Geography" too.
+  const subjects = await db.subject.findMany({
+    where: { examId: series.examId },
+    select: { id: true, name: true },
+  });
   const subjectId = new Map(subjects.map((s) => [s.name, s.id]));
 
   let created = 0;

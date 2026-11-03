@@ -52,13 +52,20 @@ async function main() {
   });
   if (!series) throw new Error('The free series is missing. Run the catalogue seed first.');
 
-  const subjects = await db.subject.findMany({ select: { id: true, name: true } });
+  // The series' own exam only. KEA FDA / SDA shares subject names with KAS
+  // ("Geography"), and its questions are marked differently, so neither its
+  // subjects nor its questions may be drawn into a KAS free test.
+  const subjects = await db.subject.findMany({
+    where: { examId: series.examId },
+    select: { id: true, name: true },
+  });
   const idOf = new Map(subjects.map((s) => [s.name, s.id]));
 
   // Only questions nobody has to pay for elsewhere would be wrong to give away,
   // and only questions with a real answer key are safe to mark against.
   const pool = await db.question.findMany({
     where: {
+      examId: series.examId,
       deletedAt: null,
       status: 'PUBLISHED',
       options: { some: { isCorrect: true } },

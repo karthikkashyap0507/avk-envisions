@@ -21,7 +21,7 @@ export const POST = route(async ({ request, params, ip }) => {
 
   const test = await db.test.findFirst({
     where: { id: testId, deletedAt: null },
-    select: { id: true, title: true, defaultNegativeRatio: true },
+    select: { id: true, title: true, defaultNegativeRatio: true, examId: true },
   });
   if (!test) throw errors.notFound('Test');
 
@@ -88,13 +88,18 @@ export const POST = route(async ({ request, params, ip }) => {
     const already = new Set(existing.map((row) => row.questionId));
     let nextOrder = existing.reduce((max, row) => Math.max(max, row.sortOrder), 0);
 
-    const usable = await db.question.findMany({
+    const candidates = await db.question.findMany({
       where: {
         id: { in: input.questionIds.filter((qid) => !already.has(qid)) },
         deletedAt: null,
       },
-      select: { id: true, marks: true, negativeMarks: true },
+      select: { id: true, marks: true, negativeMarks: true, examId: true },
     });
+
+    // Only the test's own exam. A question carries its exam's marks, so a KAS
+    // question on a KEA FDA / SDA paper would be scored +2 / −0.5 there.
+    const usable = candidates.filter((question) => question.examId === test.examId);
+    const foreign = candidates.length - usable.length;
 
     for (const question of usable) {
       nextOrder += 1;
@@ -125,9 +130,12 @@ export const POST = route(async ({ request, params, ip }) => {
     return {
       data: { attached: usable.length, skipped: input.questionIds.length - usable.length, ...totals },
       message:
-        usable.length === 0
+        (usable.length === 0 && foreign === 0
           ? 'Those questions are already on this test.'
-          : `Added ${usable.length} question${usable.length === 1 ? '' : 's'}.`,
+          : `Added ${usable.length} question${usable.length === 1 ? '' : 's'}.`) +
+        (foreign > 0
+          ? ` ${foreign} from another exam ${foreign === 1 ? 'was' : 'were'} left out.`
+          : ''),
     };
   }
 

@@ -8,6 +8,7 @@ import {
   Clock,
   FileQuestion,
   Gift,
+  Landmark,
   Layers,
   Star,
 } from "lucide-react";
@@ -24,6 +25,7 @@ const ICONS: Record<string, typeof ClipboardCheck> = {
   ClipboardList,
   FileQuestion,
   Gift,
+  Landmark,
   Layers,
 };
 

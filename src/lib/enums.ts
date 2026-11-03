@@ -634,6 +634,33 @@ export const KAS_REVISION_FROM = '2026-11-03';
 export const KAS_REVISION_TO = '2026-11-14';
 
 /**
+ * KEA FDA / SDA — a second exam, not a KAS series.
+ *
+ * Its own exam because it is marked differently (1 mark, −0.25; see
+ * `@/lib/marking`) and has its own subjects: General Kannada and General
+ * English have no place in the KAS syllabus, and filing FDA papers under KAS
+ * subjects would have mixed them into every KAS student's analytics.
+ */
+export const FDA_SDA_EXAM_SLUG = 'kea-fda-sda';
+/** The fifteen-test series sold as "KEA FDA / SDA Test Series". */
+export const FDA_SDA_SERIES_SLUG = 'kea-fda-sda-test-series';
+/** Slug prefix for its papers: `kea-fda-sda-1` … `kea-fda-sda-15`. */
+export const FDA_SDA_TEST_PREFIX = 'kea-fda-sda-';
+/** Where the series is read, from the menu, the homepage and the dashboard. */
+export const FDA_SDA_SERIES_HREF = `/test-series/${FDA_SDA_SERIES_SLUG}`;
+/**
+ * Its General English subject.
+ *
+ * Never translated: a question testing English vocabulary or grammar means
+ * nothing once it has been turned into Kannada, so these are always shown as
+ * written, whichever language the student sits the paper in.
+ */
+export const FDA_SDA_ENGLISH_SUBJECT_SLUG = 'general-english';
+/** The revision window after the last paper, from the published timetable. */
+export const FDA_SDA_REVISION_FROM = '2026-12-28';
+export const FDA_SDA_REVISION_TO = '2026-12-31';
+
+/**
  * The number a student can call for help.
  *
  * Shown only on the signed-in dashboard — this is support for people who

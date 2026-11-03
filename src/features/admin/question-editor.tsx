@@ -14,7 +14,7 @@ import { FormField } from '@/components/ui/label';
 import { InlineError } from '@/components/ui/states';
 import { ApiClientError, api } from '@/lib/api-client';
 import { DeleteQuestion } from '@/features/admin/delete-question';
-import { MARKS_PER_QUESTION, NEGATIVE_MARKS_PER_QUESTION } from '@/lib/marking';
+import { markingSchemeFor } from '@/lib/marking';
 
 import { FigurePicker } from './figure-picker';
 import { cn } from '@/lib/utils';
@@ -32,6 +32,8 @@ export interface TaxonomyExam {
   id: string;
   name: string;
   shortName: string;
+  /** Optional so older callers still type-check; KAS marks apply without it. */
+  slug?: string;
   subjects: {
     id: string;
     name: string;
@@ -75,11 +77,20 @@ const TYPES = [
 const DIFFICULTIES = ['EASY', 'MEDIUM', 'HARD'] as const;
 const STATUSES = ['DRAFT', 'UNDER_REVIEW', 'PUBLISHED', 'ARCHIVED'] as const;
 
-function blankDraft(exams: TaxonomyExam[]): QuestionDraft {
-  const exam = exams[0];
+function blankDraft(
+  exams: TaxonomyExam[],
+  start?: { examId: string; subjectId: string | null },
+): QuestionDraft {
+  const exam = exams.find((e) => e.id === start?.examId) ?? exams[0];
+  const subjectId =
+    start?.subjectId && exam?.subjects.some((s) => s.id === start.subjectId)
+      ? start.subjectId
+      : (exam?.subjects[0]?.id ?? '');
+  // The exam's own scheme: KAS +2 / −0.5, KEA FDA / SDA +1 / −0.25.
+  const scheme = markingSchemeFor(exam?.slug);
   return {
     examId: exam?.id ?? '',
-    subjectId: exam?.subjects[0]?.id ?? '',
+    subjectId,
     chapterId: null,
     topicId: null,
     type: 'SINGLE_CORRECT',
@@ -95,8 +106,8 @@ function blankDraft(exams: TaxonomyExam[]): QuestionDraft {
     body: '',
     passage: null,
     imageUrl: null,
-    marks: MARKS_PER_QUESTION,
-    negativeMarks: NEGATIVE_MARKS_PER_QUESTION,
+    marks: scheme.marks,
+    negativeMarks: scheme.negativeMarks,
     numericalAnswer: null,
     numericalTolerance: 0.01,
     explanation: null,
@@ -119,6 +130,7 @@ export function QuestionEditor({
   initial,
   returnTo,
   attachToTestId,
+  start,
 }: {
   exams: TaxonomyExam[];
   initial?: QuestionDraft;
@@ -133,6 +145,11 @@ export function QuestionEditor({
   returnTo?: string;
   /** Attach a newly created question to this paper as well as the bank. */
   attachToTestId?: string;
+  /**
+   * The exam and subject a new question starts in — the paper's own, when it
+   * was opened from one, so an FDA paper's question starts with FDA marks.
+   */
+  start?: { examId: string; subjectId: string | null };
 }) {
   const router = useRouter();
   const isEdit = Boolean(initial?.id);
@@ -145,7 +162,7 @@ export function QuestionEditor({
       ? returnTo
       : '/admin/questions';
 
-  const [draft, setDraft] = React.useState<QuestionDraft>(initial ?? blankDraft(exams));
+  const [draft, setDraft] = React.useState<QuestionDraft>(initial ?? blankDraft(exams, start));
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -336,12 +353,19 @@ export function QuestionEditor({
                 value={draft.examId}
                 onChange={(event) => {
                   const nextExam = exams.find((e) => e.id === event.target.value);
+                  // A new question takes the exam's marks with it. An existing
+                  // one keeps what it has: changing marks on a saved question
+                  // is a decision, not a side effect of filing it elsewhere.
+                  const nextScheme = markingSchemeFor(nextExam?.slug);
                   setDraft((previous) => ({
                     ...previous,
                     examId: event.target.value,
                     subjectId: nextExam?.subjects[0]?.id ?? '',
                     chapterId: null,
                     topicId: null,
+                    ...(previous.id
+                      ? {}
+                      : { marks: nextScheme.marks, negativeMarks: nextScheme.negativeMarks }),
                   }));
                 }}
                 className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"

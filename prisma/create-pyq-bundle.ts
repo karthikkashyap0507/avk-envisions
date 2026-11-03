@@ -44,7 +44,8 @@ async function main() {
     console.log(`    ${row.slug.padEnd(24)} ${row.priceInPaise === 0 ? 'free' : `₹${row.priceInPaise / 100}`}`);
   }
 
-  const exam = await db.exam.findFirst({ select: { id: true } });
+  // KAS by slug: the bundle sells KAS papers, and there is more than one exam.
+  const exam = await db.exam.findFirst({ where: { slug: 'kas' }, select: { id: true } });
   if (!exam) throw new Error('No exam found. Seed the catalogue first.');
 
   // Everyone who bought a single year before the bundle existed.

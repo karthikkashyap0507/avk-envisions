@@ -509,6 +509,8 @@ export const getTaxonomyTree = cache(async () =>
       id: true,
       name: true,
       shortName: true,
+      // Decides a new question's default marks (see `markingSchemeFor`).
+      slug: true,
       subjects: {
         where: { deletedAt: null },
         orderBy: { sortOrder: 'asc' },

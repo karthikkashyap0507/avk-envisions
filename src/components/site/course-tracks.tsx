@@ -7,6 +7,7 @@ import {
   Clock,
   FileQuestion,
   Gift,
+  Landmark,
   Layers,
   type LucideIcon,
 } from 'lucide-react';
@@ -20,6 +21,7 @@ const ICONS: Record<string, LucideIcon> = {
   ClipboardList,
   FileQuestion,
   Gift,
+  Landmark,
   Layers,
 };
 
@@ -72,6 +74,12 @@ const SKINS: Record<TrackKey, Skin> = {
     wash: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300',
     button: 'bg-amber-500 hover:bg-amber-600 text-white',
     chip: 'bg-muted text-muted-foreground',
+  },
+  KEA_FDA_SDA: {
+    detailsSlug: 'kea-fda-sda',
+    wash: 'bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-300',
+    button: 'bg-purple-600 hover:bg-purple-700 text-white',
+    chip: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
   },
   CHAPTERWISE: {
     detailsSlug: 'chapterwise',

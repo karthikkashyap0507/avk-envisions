@@ -23,6 +23,7 @@ const TRACK_LABELS: Record<string, string> = {
   PAID_SERIES: 'Paid series',
   PYQ: 'Previous year',
   CHAPTERWISE: 'Chapterwise',
+  KEA_FDA_SDA: 'KEA FDA / SDA',
 };
 
 export default async function AdminTestSeriesPage() {

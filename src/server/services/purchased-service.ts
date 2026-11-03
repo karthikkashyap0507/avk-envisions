@@ -2,6 +2,8 @@ import {
   COMBO_INCLUDES,
   COMBO_SLUG,
   DAILY_CHALLENGE_SLUG,
+  FDA_SDA_SERIES_HREF,
+  FDA_SDA_SERIES_SLUG,
   PYQ_BUNDLE_SLUG,
   PYQ_SERIES_PREFIX,
 } from '@/lib/enums';
@@ -77,6 +79,14 @@ export function destinationFor(slug: string, name: string): Destination {
       name: 'KAS Full Length Tests',
       href: '/test-series/kas-prelims-paid-test-series',
       blurb: 'Full-length mocks in the real prelims pattern.',
+    };
+  }
+
+  if (slug === FDA_SDA_SERIES_SLUG) {
+    return {
+      name: 'KEA FDA / SDA Test Series',
+      href: FDA_SDA_SERIES_HREF,
+      blurb: '11 sectional tests and 4 full-length mocks, on dated papers.',
     };
   }
 

@@ -23,6 +23,8 @@ export interface PickerTest {
   questionCount: number;
   status: string;
   accessType: string;
+  /** The exam the paper belongs to; questions from any other exam are refused. */
+  examId?: string;
 }
 
 export interface PickerGroup {

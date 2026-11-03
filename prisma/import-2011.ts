@@ -119,7 +119,11 @@ async function main() {
   });
   if (!series) throw new Error(`Series ${SERIES} not found. Run the catalogue seed first.`);
 
-  const subjects = await db.subject.findMany({ select: { id: true, name: true } });
+  // This exam's subjects only: KEA FDA / SDA shares names such as "Geography".
+  const subjects = await db.subject.findMany({
+    where: { examId: series.examId },
+    select: { id: true, name: true },
+  });
   const subjectId = new Map(subjects.map((s) => [s.name, s.id]));
 
   // --- Read every supplied document ---------------------------------------

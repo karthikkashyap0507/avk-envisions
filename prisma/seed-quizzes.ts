@@ -21,7 +21,8 @@ const DRY_RUN = process.argv.includes('--dry-run');
 async function main() {
   console.log(`\nSetting up quizzes${DRY_RUN ? ' (dry run)' : ''}\n`);
 
-  const exam = await db.exam.findFirst({ select: { id: true } });
+  // KAS by slug: with a second exam, "the first exam" is not KAS by definition.
+  const exam = await db.exam.findFirst({ where: { slug: 'kas' }, select: { id: true } });
   if (!exam) throw new Error('No exam. Run the base seed first.');
 
   let series = await db.testSeries.findFirst({
@@ -65,7 +66,7 @@ async function main() {
   // An empty first quiz, ready for questions. Left as a draft: it appears in
   // the admin immediately, and reaches students only once it has questions and
   // someone publishes it.
-  const subject = await db.subject.findFirst({ select: { id: true } });
+  const subject = await db.subject.findFirst({ where: { examId: exam.id }, select: { id: true } });
   await db.test.create({
     data: {
       examId: exam.id,

@@ -23,7 +23,8 @@ const DESCRIPTION =
   'KAS PYQ Tests, KAS-50 (Daily tests) and KAS Full Length Tests in one purchase — every previous year paper, fifty daily papers and the full-length mocks.';
 
 async function main() {
-  const exam = await db.exam.findFirst({ select: { id: true } });
+  // KAS by slug: the combo sells KAS series, and there is more than one exam.
+  const exam = await db.exam.findFirst({ where: { slug: 'kas' }, select: { id: true } });
   if (!exam) {
     console.log('  --  no exam yet; combo not created');
     return;

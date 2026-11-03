@@ -35,9 +35,36 @@ export const POST = route(async ({ request, ip }) => {
   if (existingIds.length > 0) {
     const found = await db.test.findMany({
       where: { id: { in: existingIds }, deletedAt: null },
-      select: { id: true },
+      select: { id: true, title: true, examId: true },
     });
     if (found.length !== new Set(existingIds).size) throw errors.notFound('Test');
+
+    // The questions are filed under this exam and marked its way, so they may
+    // only land on its papers. A KAS-marked question on a KEA FDA / SDA paper
+    // would score that paper out of 200 instead of 100, silently.
+    const foreign = found.find((test) => test.examId !== exam.id);
+    if (foreign) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        `“${foreign.title}” belongs to another exam. Choose that exam for this import, or leave the paper out.`,
+      );
+    }
+  }
+
+  // Likewise a new test placed in a series: the series decides the exam.
+  for (const destination of input.destinations) {
+    if (destination.kind !== 'NEW_TEST' || !destination.testSeriesId) continue;
+    const series = await db.testSeries.findFirst({
+      where: { id: destination.testSeriesId, deletedAt: null },
+      select: { name: true, examId: true },
+    });
+    if (!series) throw errors.notFound('Test series');
+    if (series.examId !== exam.id) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        `“${series.name}” belongs to another exam. Choose that exam for this import, or another series.`,
+      );
+    }
   }
 
   // Question codes must be unique. Reserve a contiguous range up front rather

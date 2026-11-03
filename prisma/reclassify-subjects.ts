@@ -59,8 +59,10 @@ function subjectFromHeading(heading: string | null, topic: string | null): strin
 async function main() {
   console.log(`\nReclassifying question subjects${DRY_RUN ? ' (dry run)' : ''}\n`);
 
+  // KAS subjects only: KEA FDA / SDA shares names such as "Geography", and a
+  // name matched across exams could refile a KAS question under FDA.
   const subjects = await db.subject.findMany({
-    where: { deletedAt: null },
+    where: { deletedAt: null, exam: { slug: 'kas' } },
     select: { id: true, name: true },
   });
   const idFor = new Map(subjects.map((s) => [s.name, s.id]));

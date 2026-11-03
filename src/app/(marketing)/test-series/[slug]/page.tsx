@@ -6,7 +6,14 @@ import { CheckCircle2, Clock, FileQuestion, Lock, ShieldCheck } from 'lucide-rea
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { TEST_CATEGORY_LABELS, type TestCategory } from '@/lib/enums';
+import {
+  FDA_SDA_REVISION_FROM,
+  FDA_SDA_REVISION_TO,
+  FDA_SDA_SERIES_SLUG,
+  TEST_CATEGORY_LABELS,
+  type TestCategory,
+} from '@/lib/enums';
+import { FDA_SDA_MARKING } from '@/lib/marking';
 import { formatDuration, formatPaise } from '@/lib/utils';
 import { BuyButton } from '@/features/checkout/buy-button';
 import { db } from '@/server/db';
@@ -34,6 +41,7 @@ import { getAllTestSeries, getTestSeriesBySlug } from '@/server/services/marketi
 const PLANNED_QUESTIONS: Record<string, number> = {
   'kas-prelims-free-test-series': 25,
   'kas-prelims-paid-test-series': 100,
+  [FDA_SDA_SERIES_SLUG]: 100,
 };
 
 /**
@@ -45,12 +53,40 @@ const PLANNED_QUESTIONS: Record<string, number> = {
  */
 const SCHEDULE_PAGES: Record<string, string> = {
   'kas-prelims-paid-test-series': '/courses/paid-test-series/syllabus',
+  [FDA_SDA_SERIES_SLUG]: '/courses/kea-fda-sda/syllabus',
 };
 
 const SCHEDULE_SERIES = new Set([
   'kas-prelims-free-test-series',
   'kas-prelims-paid-test-series',
+  FDA_SDA_SERIES_SLUG,
 ]);
+
+/**
+ * What differs on the FDA / SDA page: it is a different exam, marked
+ * differently, so the marking is stated rather than left to be assumed, and its
+ * papers open on dates rather than on any day as the free series' do.
+ */
+const FDA_SDA_SCHEDULE = {
+  eyebrow: 'KEA FDA / SDA 2026',
+  marking: `+${FDA_SDA_MARKING.marks} / −${FDA_SDA_MARKING.negativeMarks}`,
+  instructions:
+    `Each test opens on its scheduled date. Every paper has 100 questions in 2 hours: ` +
+    `${FDA_SDA_MARKING.marks} mark for a correct answer, ${FDA_SDA_MARKING.negativeMarks} deducted for a ` +
+    'wrong one, and nothing for a question left blank. Once started, a test must be completed in one ' +
+    'sitting — the timer runs on our servers and does not pause, and the paper is submitted ' +
+    'automatically when time runs out. Your score is shown the moment you submit. On each ' +
+    'full-length Sunday, sit Paper 1 in the morning and Paper 2 in the afternoon.',
+};
+
+/** "28–31 December 2026", from the revision window's two ISO dates. */
+function revisionWindow(): string {
+  const day = (iso: string) => Number(iso.slice(8, 10));
+  const month = new Intl.DateTimeFormat('en-IN', { month: 'long', timeZone: 'UTC' }).format(
+    new Date(`${FDA_SDA_REVISION_TO}T00:00:00Z`),
+  );
+  return `${day(FDA_SDA_REVISION_FROM)}–${day(FDA_SDA_REVISION_TO)} ${month} ${FDA_SDA_REVISION_TO.slice(0, 4)}`;
+}
 
 export async function generateStaticParams() {
   const series = await getAllTestSeries();
@@ -106,11 +142,34 @@ export default async function TestSeriesDetailPage({
     const earlyBird = pricing?.ladder.find((rung) => rung.active && rung.limit !== null) ?? null;
     const standard = pricing?.ladder.find((rung) => rung.limit === null) ?? null;
 
+    const fdaSda = slug === FDA_SDA_SERIES_SLUG;
+
     return (
       <FreeSeriesSchedule
         name={series.name}
         tagline={series.tagline}
-        eyebrow={series.priceInPaise > 0 ? 'KAS Full Length Tests' : 'Free Test Series'}
+        eyebrow={
+          fdaSda
+            ? FDA_SDA_SCHEDULE.eyebrow
+            : series.priceInPaise > 0
+              ? 'KAS Full Length Tests'
+              : 'Free Test Series'
+        }
+        marking={fdaSda ? FDA_SDA_SCHEDULE.marking : undefined}
+        instructions={fdaSda ? FDA_SDA_SCHEDULE.instructions : undefined}
+        footer={
+          fdaSda ? (
+            <section className="mt-4 rounded-2xl border border-primary/25 bg-primary-muted/30 p-4 sm:p-5">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-primary">
+                Final revision · {revisionWindow()}
+              </h2>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                Reattempt the questions you got wrong, revise important facts and concepts, focus
+                on current affairs, and work on your weak areas using your performance analysis.
+              </p>
+            </section>
+          ) : undefined
+        }
         plannedQuestions={PLANNED_QUESTIONS[slug]}
         scheduleHref={SCHEDULE_PAGES[slug]}
         // Only while an early rung is genuinely open. Past that the price on
@@ -159,6 +218,10 @@ export default async function TestSeriesDetailPage({
           totalQuestions: test.totalQuestions,
           startDate: test.startDate,
           synopsisFileName: test.synopsisFileName,
+          published: test.status === 'PUBLISHED',
+          // Only where the description is a short session line, as the FDA /
+          // SDA timetable writes them. The KAS rows carry a full syllabus there.
+          note: fdaSda ? test.description : null,
         }))}
       />
     );

@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { QuestionEditor } from '@/features/admin/question-editor';
 import { EmptyState } from '@/components/ui/states';
 import { enforceAdminArea } from '@/server/auth/guards';
+import { db } from '@/server/db';
 import { getTaxonomyTree } from '@/server/services/admin-service';
 
 export const metadata: Metadata = {
@@ -24,6 +25,15 @@ export default async function NewQuestionPage({
   // returns there rather than to the unfiltered bank.
   const testId = query.testId;
 
+  // That paper's exam and subject, so the question starts there and with that
+  // exam's marks — an FDA paper's question at KAS marks would score it wrong.
+  const paper = testId
+    ? await db.test.findFirst({
+        where: { id: testId, deletedAt: null },
+        select: { examId: true, subjectId: true },
+      })
+    : null;
+
   // A question must belong to a subject, so there is nothing to render until
   // the taxonomy exists. Say so rather than showing empty dropdowns.
   const usable = exams.filter((exam) => exam.subjects.length > 0);
@@ -44,6 +54,7 @@ export default async function NewQuestionPage({
     <QuestionEditor
       exams={usable}
       attachToTestId={testId}
+      start={paper ? { examId: paper.examId, subjectId: paper.subjectId } : undefined}
       returnTo={testId ? `/admin/questions?testId=${testId}` : undefined}
     />
   );

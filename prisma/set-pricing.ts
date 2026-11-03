@@ -63,6 +63,8 @@ const PLANS: Plan[] = [
 
   // Full-length mocks — ₹99 for the first 50, then ₹299.
   { slug: 'kas-prelims-paid-test-series', price: 199, earlyBird: 99, earlyBirdLimit: 50 },
+  // KEA FDA / SDA Test Series — a flat ₹199 for everyone, no early-bird ladder.
+  { slug: 'kea-fda-sda-test-series', price: 199, earlyBird: null, earlyBirdLimit: null },
 
   // Chapterwise, priced per subject. Each is bought on its own, which is why
   // the page offers both "Unlock Now" per subject and "Unlock All Subjects".

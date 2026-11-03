@@ -23,6 +23,10 @@ export interface NavItem {
   label: string;
   /** Rendered as the row's icon; passed from the server component. */
   icon: React.ReactNode;
+  /** A short pill after the label, e.g. "NEW". */
+  badge?: string;
+  /** Tinted even when not the current page, to draw the eye to a launch. */
+  highlight?: boolean;
 }
 
 interface Props {
@@ -122,7 +126,9 @@ export function NavPanel({
                       'flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors',
                       active
                         ? 'bg-primary-muted text-primary'
-                        : 'text-foreground hover:bg-muted/70',
+                        : item.highlight
+                          ? 'bg-primary-muted/60 text-foreground hover:bg-primary-muted'
+                          : 'text-foreground hover:bg-muted/70',
                     )}
                   >
                     <span
@@ -131,7 +137,17 @@ export function NavPanel({
                     >
                       {item.icon}
                     </span>
-                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                    {/* A badged label wraps rather than truncates: on a phone the
+                        pill takes the room the name needs, and "KEA FDA / SDA
+                        Test S…" hides which test series it is. */}
+                    <span className={cn('min-w-0 flex-1', item.badge ? 'leading-snug' : 'truncate')}>
+                      {item.label}
+                    </span>
+                    {item.badge && (
+                      <span className="shrink-0 rounded-full bg-red-600 px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-white">
+                        {item.badge}
+                      </span>
+                    )}
                     <ChevronRight
                       className="size-4 shrink-0 text-muted-foreground"
                       aria-hidden="true"

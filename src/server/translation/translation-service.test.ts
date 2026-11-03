@@ -20,10 +20,15 @@ const store = {
 
 function matches(row: Row, where: Row): boolean {
   return Object.entries(where).every(([key, condition]) => {
+    // Prisma's NOT: the row must fail the nested condition.
+    if (key === 'NOT') return !matches(row, condition as Row);
     if (condition && typeof condition === 'object' && !Array.isArray(condition)) {
       const c = condition as { in?: unknown[]; not?: unknown };
       if (c.in) return c.in.includes(row[key]);
       if ('not' in c) return row[key] !== c.not;
+      // A relation filter, e.g. `subject: { slug }`: match the related row.
+      const related = row[key];
+      return related !== null && typeof related === 'object' && matches(related as Row, condition as Row);
     }
     return row[key] === condition;
   });
@@ -99,6 +104,37 @@ beforeEach(() => {
   engine.down = false;
   engine.refuse = new Set();
   engine.failAfter = Infinity;
+});
+
+describe('questions kept as written', () => {
+  // KEA FDA / SDA General English tests the English itself.
+  const english = { subject: { slug: 'general-english', exam: { slug: 'kea-fda-sda' } } };
+
+  it('never sends a FDA / SDA General English question to the engine', async () => {
+    store.questions.push(question('en1', english));
+    expect(await translateQuestions(['en1'], 'stem')).toBe(0);
+    expect(engine.calls).toEqual([]);
+  });
+
+  it('reports it as neither translated nor pending, so the paper stops waiting', async () => {
+    store.questions.push(question('en1', english), question('q1'));
+    const { stems, pending } = await readQuestionTranslations(['en1', 'q1'], ['stem']);
+    expect(stems.en1).toBeUndefined();
+    expect(pending.stem).toEqual(['q1']);
+  });
+
+  it('leaves it out of the backlog', async () => {
+    store.questions.push(question('en1', english), question('q1'));
+    expect((await findBacklog()).stems).toEqual(['q1']);
+  });
+
+  it('still translates English questions of other subjects and exams', async () => {
+    store.questions.push(
+      question('kas', { subject: { slug: 'general-english', exam: { slug: 'kas' } } }),
+      question('fda', { subject: { slug: 'general-science', exam: { slug: 'kea-fda-sda' } } }),
+    );
+    expect(await translateQuestions(['kas', 'fda'], 'stem')).toBe(2);
+  });
 });
 
 describe('translateQuestions', () => {

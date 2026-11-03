@@ -45,13 +45,15 @@ async function main() {
     return;
   }
 
-  const exam = await db.exam.findFirst({ select: { id: true } });
+  // The KAS exam by slug, not "the first exam": there is more than one now.
+  const exam = await db.exam.findFirst({ where: { slug: 'kas' }, select: { id: true } });
   if (!exam) throw new Error('No exam. Run the base seed first.');
 
   // Subjects are matched by name, so a rename in the catalogue would silently
-  // leave days unbanded. Fail loudly instead.
+  // leave days unbanded. Fail loudly instead. KAS subjects only: KEA FDA / SDA
+  // has a "Geography" too, and matching across exams could pick that one.
   const subjects = await db.subject.findMany({
-    where: { deletedAt: null },
+    where: { deletedAt: null, examId: exam.id },
     select: { id: true, name: true },
   });
   const subjectId = new Map(subjects.map((s) => [s.name, s.id]));

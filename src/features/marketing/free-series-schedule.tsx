@@ -1,6 +1,6 @@
 import * as React from 'react';
 import Link from 'next/link';
-import { BookOpen, Clock, FileText, Info, Lock, Play } from 'lucide-react';
+import { BookOpen, Clock, FileText, Info, Lock, Play, Scale } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { EnrolmentBar } from '@/features/marketing/enrolment-bar';
@@ -22,6 +22,14 @@ export interface ScheduleTest {
   totalQuestions: number;
   startDate: Date | null;
   synopsisFileName: string | null;
+  /**
+   * Whether the paper is live. A draft can already hold questions — an admin
+   * fills it before publishing — and offering Start on it sent a student to a
+   * paper the server then refused. Omitted means published.
+   */
+  published?: boolean;
+  /** A short line under the title, e.g. "Sunday · Morning session". */
+  note?: string | null;
 }
 
 interface Props {
@@ -62,6 +70,18 @@ interface Props {
    * looking at will still be there tomorrow.
    */
   enrolment?: { count: number; limit: number } | null;
+  /**
+   * The marking scheme, as a stat beside the paper length — for a series
+   * whose exam is not marked the KAS way, where a student cannot assume it.
+   */
+  marking?: string;
+  /**
+   * The rules printed under the table. Defaults to the free series' wording,
+   * which says tests may be sat on any day — wrong for a dated, paid series.
+   */
+  instructions?: string;
+  /** Anything that follows the papers, e.g. a revision window. */
+  footer?: React.ReactNode;
 }
 
 /**
@@ -80,9 +100,9 @@ function formatTestDate(date: Date): string {
   }).format(date);
 }
 
-/** Open when it has questions and either no date or a date already past. */
+/** Open when it is live, has questions, and either no date or a date already past. */
 function isOpen(test: ScheduleTest): boolean {
-  if (test.totalQuestions === 0) return false;
+  if (test.published === false || test.totalQuestions === 0) return false;
   return test.startDate === null || test.startDate <= new Date();
 }
 
@@ -95,6 +115,9 @@ export function FreeSeriesSchedule({
   purchase,
   scheduleHref,
   enrolment,
+  marking,
+  instructions,
+  footer,
 }: Props) {
   // The planned length where the series states one, and otherwise the most
   // common written length. Inferring it alone drifted: with two papers of ten
@@ -159,7 +182,7 @@ export function FreeSeriesSchedule({
           </div>
         )}
 
-        <dl className="mt-5 grid gap-3 sm:grid-cols-3">
+        <dl className={cn('mt-5 grid gap-3', marking ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3')}>
           <Stat icon={FileText} label="Total tests" value={String(tests.length)} />
           <Stat
             icon={BookOpen}
@@ -171,6 +194,7 @@ export function FreeSeriesSchedule({
             label="Duration per test"
             value={durations[0] !== undefined ? `${durations[0]} minutes` : '—'}
           />
+          {marking && <Stat icon={Scale} label="Marking" value={marking} />}
         </dl>
       </header>
 
@@ -224,6 +248,9 @@ export function FreeSeriesSchedule({
                           ? `${test.totalQuestions} questions`
                           : 'Questions being added'}
                       </p>
+                      {test.note && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">{test.note}</p>
+                      )}
                     </td>
 
                     {/* The date the paper opens. A series sold on a published
@@ -286,12 +313,15 @@ export function FreeSeriesSchedule({
           <span className="font-semibold">Important instructions</span>
           <br />
           <span className="text-muted-foreground">
-            Free tests can be attempted on any day, in any order. Once started, a test must be
-            completed in one sitting — the timer runs on our servers and does not pause. You may
-            attempt each test at most 2 times.
+            {instructions ??
+              'Free tests can be attempted on any day, in any order. Once started, a test must be ' +
+                'completed in one sitting — the timer runs on our servers and does not pause. You may ' +
+                'attempt each test at most 2 times.'}
           </span>
         </span>
       </p>
+
+      {footer}
 
       <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl border border-border px-4 py-3 text-xs text-muted-foreground sm:px-5">
         <span className="font-semibold uppercase tracking-wide">Legend</span>

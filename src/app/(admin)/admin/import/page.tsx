@@ -12,8 +12,13 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic';
 
-export default async function ImportPage() {
+export default async function ImportPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ testId?: string }>;
+}) {
   await enforceAdminArea('/admin/import');
+  const { testId: fromTestId } = await searchParams;
 
   const [exams, series, tests] = await Promise.all([
     db.exam.findMany({
@@ -23,6 +28,8 @@ export default async function ImportPage() {
         id: true,
         name: true,
         shortName: true,
+        // Picks the marking scheme: an FDA paper is +1 / −0.25, KAS +2 / −0.5.
+        slug: true,
         subjects: {
           where: { deletedAt: null },
           orderBy: { sortOrder: 'asc' },
@@ -33,7 +40,7 @@ export default async function ImportPage() {
     db.testSeries.findMany({
       where: { deletedAt: null },
       orderBy: [{ track: 'asc' }, { name: 'asc' }],
-      select: { id: true, name: true, track: true },
+      select: { id: true, name: true, track: true, examId: true },
     }),
     // Every live test, so an import can be sent to several at once. Archived
     // ones are left out: they are retired, and offering them invites filling a
@@ -59,6 +66,10 @@ export default async function ImportPage() {
         totalQuestions: true,
         testSeriesId: true,
         testSeries: { select: { id: true, name: true } },
+        // Questions belong to an exam, and are marked the way it is marked,
+        // so a paper may only receive questions from its own exam.
+        examId: true,
+        subjectId: true,
       },
     }),
   ]);
@@ -85,6 +96,7 @@ export default async function ImportPage() {
           questionCount: test.totalQuestions,
           status: test.status,
           accessType: test.accessType,
+          examId: test.examId,
         })),
       }))
       // Standalone last: it is a catch-all, not a series someone looks for.
@@ -92,6 +104,22 @@ export default async function ImportPage() {
   })();
 
   const usable = exams.filter((exam) => exam.subjects.length > 0);
+
+  // Opened from a paper — "Import PDF" on the FDA / SDA page, say. That paper
+  // is chosen as the destination, and the exam, subject and marks follow it,
+  // so the admin starts from the right place rather than from KAS defaults.
+  const from = fromTestId ? tests.find((test) => test.id === fromTestId) : undefined;
+  const initial = from
+    ? {
+        examId: from.examId,
+        subjectId:
+          from.subjectId &&
+          usable.find((e) => e.id === from.examId)?.subjects.some((s) => s.id === from.subjectId)
+            ? from.subjectId
+            : '',
+        testIds: [from.id],
+      }
+    : undefined;
 
   if (usable.length === 0) {
     return (
@@ -114,7 +142,13 @@ export default async function ImportPage() {
         </p>
       </header>
 
-      <PdfImport exams={usable} series={series} tests={tests} groups={groups} />
+      <PdfImport
+        exams={usable}
+        series={series}
+        tests={tests}
+        groups={groups}
+        initial={initial}
+      />
     </div>
   );
 }

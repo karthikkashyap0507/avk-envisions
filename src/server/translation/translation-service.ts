@@ -2,6 +2,7 @@ import 'server-only';
 
 import { createHash } from 'crypto';
 
+import { FDA_SDA_ENGLISH_SUBJECT_SLUG, FDA_SDA_EXAM_SLUG } from '@/lib/enums';
 import { db } from '@/server/db';
 import { logger } from '@/server/logger';
 
@@ -69,6 +70,20 @@ const QUESTION_SOURCE = {
   // hundred questions Prisma splits this query into chunks, and merging them
   // back needs the ordering field - without it the query engine panics.
   options: { orderBy: { sortOrder: 'asc' as const }, select: { id: true, body: true, sortOrder: true } },
+};
+
+/**
+ * Questions shown as written, whichever language the paper is sat in.
+ *
+ * KEA FDA / SDA General English tests English itself — vocabulary, grammar,
+ * comprehension — so a Kannada rendering of it is a different question, and a
+ * wrong one. These are never sent to the engine and never counted as pending:
+ * a student in Kannada mode reads them in English, which is how the real exam
+ * prints them. (General Kannada needs no rule: it is written in Kannada, and
+ * only English sentences are ever translated.)
+ */
+const KEPT_AS_WRITTEN = {
+  subject: { slug: FDA_SDA_ENGLISH_SUBJECT_SLUG, exam: { slug: FDA_SDA_EXAM_SLUG } },
 };
 
 function fingerprint(value: unknown): string {
@@ -209,7 +224,10 @@ export async function translateQuestions(questionIds: string[], part: Translatio
   if (questionIds.length === 0) return 0;
 
   const [questions, existing] = await Promise.all([
-    db.question.findMany({ where: { id: { in: questionIds }, deletedAt: null }, select: QUESTION_SOURCE }),
+    db.question.findMany({
+      where: { id: { in: questionIds }, deletedAt: null, NOT: KEPT_AS_WRITTEN },
+      select: QUESTION_SOURCE,
+    }),
     db.contentTranslation.findMany({
       where: { entityType: ENTITY[part], language: KANNADA, entityId: { in: questionIds } },
       select: { entityId: true, sourceHash: true },
@@ -280,7 +298,9 @@ export async function readQuestionTranslations(
   if (questionIds.length === 0) return result;
 
   const [questions, rows] = await Promise.all([
-    db.question.findMany({ where: { id: { in: questionIds } }, select: QUESTION_SOURCE }),
+    // Kept-as-written questions are left out, so they are neither returned
+    // nor pending: the paper shows them in English and stops waiting.
+    db.question.findMany({ where: { id: { in: questionIds }, NOT: KEPT_AS_WRITTEN }, select: QUESTION_SOURCE }),
     db.contentTranslation.findMany({
       where: {
         language: KANNADA,
@@ -411,7 +431,10 @@ export async function findBacklog(): Promise<Backlog> {
       },
       orderBy: { updatedAt: 'desc' },
     }),
-    db.question.findMany({ where: { deletedAt: null, status: 'PUBLISHED' }, select: QUESTION_SOURCE }),
+    db.question.findMany({
+      where: { deletedAt: null, status: 'PUBLISHED', NOT: KEPT_AS_WRITTEN },
+      select: QUESTION_SOURCE,
+    }),
     db.contentTranslation.findMany({
       where: { language: KANNADA },
       select: { entityType: true, entityId: true, sourceHash: true },

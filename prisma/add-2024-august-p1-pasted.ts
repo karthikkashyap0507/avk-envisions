@@ -71,7 +71,8 @@ async function main() {
     return;
   }
 
-  const subjects = await db.subject.findMany({ select: { id: true } });
+  // This exam's own subjects, so the fallback below cannot be another exam's.
+  const subjects = await db.subject.findMany({ where: { examId: test.examId }, select: { id: true } });
 
   for (const q of adding) {
     const code = `${TEST_SLUG}-Q${q.number}`.toUpperCase();

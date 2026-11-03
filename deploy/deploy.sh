@@ -105,6 +105,9 @@ echo "==> Refreshing content"
 #   seed-catalogue  creates the series and their tests. It no longer touches
 #                   the price of a series that already exists — it used to, and
 #                   that is what set up the failure below.
+#   setup-kea-fda-sda  creates the KEA FDA / SDA exam, series and its fifteen
+#                   dated tests. Before set-pricing, so a newly created series
+#                   is priced in the same deploy.
 #   set-pricing     owns every price. It runs AFTER the seed so nothing can
 #                   overwrite what it sets.
 #   hide-empty      publishes and hides based on what is actually there. It
@@ -120,6 +123,7 @@ for script in \
   prisma/seed-catalogue.ts \
   prisma/create-combo.ts \
   prisma/seed-staff-admin.ts \
+  prisma/setup-kea-fda-sda.ts \
   prisma/set-pricing.ts \
   prisma/trim-free-test-2.ts \
   prisma/apply-50-days-schedule.ts \

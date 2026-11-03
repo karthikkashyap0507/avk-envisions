@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  FDA_SDA_MARKING,
+  KAS_MARKING,
   MARKING_SCHEME_SHORT,
   MARKS_PER_QUESTION,
   NEGATIVE_MARKS_PER_QUESTION,
   NEGATIVE_RATIO,
+  markingSchemeFor,
+  markingSchemeText,
   totalMarksFor,
 } from './marking';
 
@@ -47,5 +51,32 @@ describe('KAS marking scheme', () => {
 
   it('describes itself with the same numbers it enforces', () => {
     expect(MARKING_SCHEME_SHORT).toBe('2 marks, −0.5 negative');
+  });
+});
+
+/**
+ * KEA FDA / SDA is marked differently, and the marks are chosen by exam — so a
+ * FDA paper must never fall back to the KAS scheme, and KAS must not change.
+ */
+describe('marking by exam', () => {
+  it('marks KEA FDA / SDA +1 / −0.25, a hundred-question paper out of 100', () => {
+    const scheme = markingSchemeFor('kea-fda-sda');
+    expect(scheme).toEqual({ marks: 1, negativeMarks: 0.25 });
+    expect(scheme).toBe(FDA_SDA_MARKING);
+    expect(100 * scheme.marks).toBe(100);
+  });
+
+  it('keeps KAS, and any exam without a scheme of its own, on +2 / −0.5', () => {
+    expect(markingSchemeFor('kas')).toEqual({ marks: 2, negativeMarks: 0.5 });
+    expect(markingSchemeFor('some-new-exam')).toBe(KAS_MARKING);
+    expect(markingSchemeFor(undefined)).toBe(KAS_MARKING);
+    expect(markingSchemeFor(null)).toBe(KAS_MARKING);
+  });
+
+  it('describes the FDA scheme in the same numbers', () => {
+    expect(markingSchemeText(FDA_SDA_MARKING)).toBe(
+      'Each question carries 1 mark. 0.25 marks are deducted for an incorrect answer. ' +
+        'Unanswered questions carry no penalty.',
+    );
   });
 });

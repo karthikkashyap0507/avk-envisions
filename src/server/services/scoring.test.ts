@@ -8,6 +8,7 @@ import {
   totalAttempt,
   type QuestionKey,
 } from './scoring';
+import { markingSchemeFor } from '@/lib/marking';
 
 /**
  * Scoring is the one part of an exam platform where a bug is unforgivable — it
@@ -274,5 +275,68 @@ describe('buildBreakdown', () => {
     expect(chemistry.unanswered).toBe(1);
     // No attempted questions must not produce NaN.
     expect(chemistry.accuracy).toBe(0);
+  });
+});
+
+/**
+ * A KEA FDA / SDA paper end to end: 100 questions keyed at the FDA scheme,
+ * scored exactly as the published rules say — +1, −0.25, 0 — out of 100.
+ */
+describe('KEA FDA / SDA paper', () => {
+  const fda = markingSchemeFor('kea-fda-sda');
+  const key = (i: number): QuestionKey => ({
+    questionId: `q${i}`,
+    type: 'SINGLE_CORRECT',
+    marks: fda.marks,
+    negativeMarks: fda.negativeMarks,
+    correctOptionIds: [`q${i}-a`],
+  });
+
+  function sit(correct: number, wrong: number) {
+    return totalAttempt(
+      Array.from({ length: 100 }, (_, i) => {
+        const answer =
+          i < correct
+            ? { selectedOptionIds: [`q${i}-a`] }
+            : i < correct + wrong
+              ? { selectedOptionIds: [`q${i}-b`] }
+              : undefined;
+        return { evaluated: evaluateAnswer(key(i), answer), maxMarks: fda.marks };
+      }),
+    );
+  }
+
+  it('awards +1 for a correct answer, −0.25 for a wrong one, 0 for a blank', () => {
+    expect(evaluateAnswer(key(1), { selectedOptionIds: ['q1-a'] }).marksAwarded).toBe(1);
+    expect(evaluateAnswer(key(1), { selectedOptionIds: ['q1-b'] }).marksAwarded).toBe(-0.25);
+    expect(evaluateAnswer(key(1), undefined).marksAwarded).toBe(0);
+    expect(evaluateAnswer(key(1), { selectedOptionIds: [] }).marksAwarded).toBe(0);
+  });
+
+  it('puts the paper out of 100', () => {
+    expect(sit(100, 0)).toMatchObject({ score: 100, maxScore: 100, percentage: 100 });
+  });
+
+  it('scores 60 right, 20 wrong, 20 blank as 55', () => {
+    const totals = sit(60, 20);
+    expect(totals).toMatchObject({
+      score: 55,
+      maxScore: 100,
+      correctCount: 60,
+      incorrectCount: 20,
+      unansweredCount: 20,
+      attemptedCount: 80,
+      accuracy: 75,
+    });
+  });
+
+  it('keeps quarter marks exact across a whole paper', () => {
+    // 73 − 27 × 0.25 = 66.25, with no floating-point drift.
+    expect(sit(73, 27).score).toBe(66.25);
+    expect(sit(1, 3).score).toBe(0.25);
+  });
+
+  it('never reports a score below zero', () => {
+    expect(sit(0, 100).score).toBe(0);
   });
 });

@@ -124,7 +124,8 @@ export async function ensureQuizSeries(): Promise<string> {
   });
   if (existing) return existing.id;
 
-  const exam = await db.exam.findFirstOrThrow({ select: { id: true } });
+  // KAS by slug: the quizzes are KAS quizzes, and there is more than one exam.
+  const exam = await db.exam.findFirstOrThrow({ where: { slug: 'kas' }, select: { id: true } });
   const created = await db.testSeries.create({
     data: {
       examId: exam.id,

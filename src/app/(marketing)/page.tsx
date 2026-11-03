@@ -20,7 +20,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatDuration } from '@/lib/utils';
-import { getCourseTracks, getPyqPaper } from '@/server/services/catalogue-service';
+import { FdaSdaBanner } from '@/features/marketing/fda-sda-banner';
+import {
+  getCourseTracks,
+  getFdaSdaSummary,
+  getPyqPaper,
+} from '@/server/services/catalogue-service';
 import { getFaqs, getTestimonials } from '@/server/services/marketing-service';
 
 export const metadata: Metadata = {
@@ -41,17 +46,20 @@ export const metadata: Metadata = {
 const FREE_PAPER_SLUG = 'kas-pyq-2011';
 
 export default async function HomePage() {
-  const [tracks, testimonials, faqs, freePaper] = await Promise.all([
+  const [tracks, testimonials, faqs, freePaper, fdaSda] = await Promise.all([
     getCourseTracks(),
     getTestimonials(3),
     getFaqs(undefined, 6),
     // The free sample paper. Null if it has not been seeded.
     getPyqPaper(FREE_PAPER_SLUG),
+    // Null until the series is published.
+    getFdaSdaSummary(),
   ]);
 
   return (
     <>
       <Hero />
+      {fdaSda && <FdaSdaBanner summary={fdaSda} />}
       <FreePaperCta paper={freePaper} />
       <TrackChooser tracks={tracks} />
       <WhyAvk />

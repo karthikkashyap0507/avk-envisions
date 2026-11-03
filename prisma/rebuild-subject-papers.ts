@@ -81,8 +81,10 @@ async function main() {
   const admin = await db.user.findFirst({ where: { role: 'ADMIN' }, select: { id: true } });
   if (!admin) throw new Error('No admin account. Run the base seed first.');
 
+  // KAS only: these are KAS previous-year drills, and KEA FDA / SDA has a
+  // "Geography" too — matched across exams by name, it could be picked.
   const subjects = await db.subject.findMany({
-    where: { deletedAt: null },
+    where: { deletedAt: null, exam: { slug: 'kas' } },
     select: { id: true, name: true },
   });
   const subjectId = new Map(subjects.map((s) => [s.name, s.id]));

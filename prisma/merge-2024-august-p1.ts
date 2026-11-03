@@ -104,7 +104,11 @@ async function main() {
   });
   if (!admin || !test) throw new Error('Admin or the 2024 August Paper 1 test is missing.');
 
-  const subjects = await db.subject.findMany({ select: { id: true, name: true } });
+  // This exam's subjects only: KEA FDA / SDA shares names such as "Geography".
+  const subjects = await db.subject.findMany({
+    where: { examId: test.examId },
+    select: { id: true, name: true },
+  });
 
   // Detached, not deleted: a question with a recorded attempt has to survive so
   // a student's result page still resolves.
