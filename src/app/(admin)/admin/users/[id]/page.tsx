@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
 import { EmptyState } from '@/components/ui/states';
+import { fromStored as readHeardAbout } from '@/lib/heard-about';
 import { formatDate, formatDuration } from '@/lib/utils';
+import { HeardAboutChips } from '@/features/admin/heard-about-chips';
 import { enforceAdminPermission } from '@/server/auth/guards';
 import { PERMISSIONS } from '@/server/auth/permissions';
 import { getUserAttemptHistory } from '@/server/services/admin-service';
@@ -71,6 +73,10 @@ export default async function AdminUserPage({ params }: { params: Promise<{ id: 
           {!isGuest && user.phone && ` · ${user.phone}`} · joined {formatDate(user.createdAt, 'short')}
           {user.lastLoginAt && ` · last seen ${formatDate(user.lastLoginAt, 'short')}`}
         </p>
+        <HeardAboutChips
+          answer={readHeardAbout(user.heardAboutJson, user.heardAboutOther)}
+          className="mt-2 text-sm"
+        />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

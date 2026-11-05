@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { FormField } from '@/components/ui/label';
 import { InlineError } from '@/components/ui/states';
 import { ApiClientError, api, applyFieldErrors } from '@/lib/api-client';
+import { HEARD_ABOUT_LABELS, HEARD_ABOUT_OTHER_MAX, HeardAbout } from '@/lib/enums';
 import { registerSchema, type RegisterInput } from '@/validations/auth';
 
 import { PasswordStrength } from './password-strength';
@@ -24,7 +25,16 @@ interface RegisterResponse {
   redirectTo: string;
 }
 
-const FIELDS = ['name', 'email', 'phone', 'password', 'confirmPassword', 'acceptTerms'] as const;
+const FIELDS = [
+  'name',
+  'email',
+  'phone',
+  'password',
+  'confirmPassword',
+  'heardAbout',
+  'heardAboutOther',
+  'acceptTerms',
+] as const;
 
 export function RegisterForm() {
   const router = useRouter();
@@ -40,12 +50,26 @@ export function RegisterForm() {
   } = useForm<RegisterInput>({
     // The identical schema runs again server-side; this is for fast feedback.
     resolver: zodResolver(registerSchema),
-    defaultValues: { name: '', email: '', phone: '', password: '', confirmPassword: '' },
+    defaultValues: {
+      name: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirmPassword: '',
+      heardAbout: [],
+      heardAboutOther: '',
+    },
     mode: 'onBlur',
   });
 
   const password = watch('password') ?? '';
   const acceptTerms = watch('acceptTerms');
+  const heardAbout = watch('heardAbout') ?? [];
+
+  function toggleHeardAbout(code: HeardAbout, on: boolean) {
+    const next = on ? [...heardAbout, code] : heardAbout.filter((c) => c !== code);
+    setValue('heardAbout', HeardAbout.values.filter((c) => next.includes(c)), { shouldDirty: true });
+  }
 
   const onSubmit = handleSubmit(async (values) => {
     try {
@@ -170,6 +194,49 @@ export function RegisterForm() {
             {...register('confirmPassword')}
           />
         </FormField>
+
+        {/* Optional, and any number may be ticked. Asked here rather than
+            after signup because this is the one moment every new student is
+            on a form — and the admin Users page reads the answer back. */}
+        <div className="rounded-xl border border-primary/15 bg-primary-muted/40 p-4">
+          <fieldset>
+            <legend className="text-sm font-semibold">How did you hear about us?</legend>
+            <div className="mt-3 space-y-2.5">
+              {HeardAbout.values.map((code) => (
+                <div key={code} className="flex items-start gap-2.5">
+                  <Checkbox
+                    id={`heard-${code}`}
+                    checked={heardAbout.includes(code)}
+                    onCheckedChange={(checked) => toggleHeardAbout(code, checked === true)}
+                  />
+                  <label htmlFor={`heard-${code}`} className="text-sm leading-snug">
+                    {HEARD_ABOUT_LABELS[code]}
+                  </label>
+                </div>
+              ))}
+            </div>
+
+            {heardAbout.includes('OTHER') && (
+              <div className="mt-3 space-y-1.5 pl-7">
+                <label htmlFor="heardAboutOther" className="sr-only">
+                  Where did you hear about us?
+                </label>
+                <Input
+                  id="heardAboutOther"
+                  maxLength={HEARD_ABOUT_OTHER_MAX}
+                  placeholder="Where? (optional)"
+                  invalid={Boolean(errors.heardAboutOther)}
+                  {...register('heardAboutOther')}
+                />
+                {errors.heardAboutOther && (
+                  <p className="text-xs font-medium text-destructive">
+                    {errors.heardAboutOther.message}
+                  </p>
+                )}
+              </div>
+            )}
+          </fieldset>
+        </div>
 
         <div className="space-y-1.5 pt-1">
           <div className="flex items-start gap-2.5">

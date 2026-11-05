@@ -22,6 +22,8 @@ export const POST = route(
       email: input.email,
       phone: input.phone,
       password: input.password,
+      heardAbout: input.heardAbout,
+      heardAboutOther: input.heardAboutOther,
       context: { ipAddress: ip, userAgent, requestId },
     });
 

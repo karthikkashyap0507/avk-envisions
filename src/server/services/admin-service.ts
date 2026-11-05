@@ -2,7 +2,8 @@ import 'server-only';
 
 import { cache } from 'react';
 
-import { TERMINAL_ATTEMPT_STATUSES } from '@/lib/enums';
+import { HeardAbout, TERMINAL_ATTEMPT_STATUSES } from '@/lib/enums';
+import { fromStored as readHeardAbout, summarise as summariseHeardAbout } from '@/lib/heard-about';
 import { round, safeDivide } from '@/lib/utils';
 import { db } from '@/server/db';
 
@@ -113,6 +114,8 @@ export async function getUserAttemptHistory(userId: string) {
       role: true,
       status: true,
       signupSource: true,
+      heardAboutJson: true,
+      heardAboutOther: true,
       createdAt: true,
       lastLoginAt: true,
     },
@@ -657,8 +660,11 @@ export async function refreshTestTotals(testId: string) {
 // Users
 // ---------------------------------------------------------------------------
 
+/** `heard` values the users list filters by: a `HeardAbout` code, or NONE for "ticked nothing". */
+export const HEARD_ABOUT_FILTER_NONE = 'NONE';
+
 export async function listUsers(
-  filters: { search?: string; role?: string; source?: string; page?: number } = {},
+  filters: { search?: string; role?: string; source?: string; heard?: string; page?: number } = {},
 ) {
   const page = Math.max(1, filters.page ?? 1);
   const pageSize = 25;
@@ -672,6 +678,13 @@ export async function listUsers(
     deletedAt: null,
     ...(filters.role ? { role: filters.role } : {}),
     ...(filters.source ? { signupSource: filters.source } : {}),
+    // Matched on the quoted code inside the stored JSON array. The codes are
+    // distinct words, so one can never match inside another.
+    ...(filters.heard === HEARD_ABOUT_FILTER_NONE
+      ? { heardAboutJson: '[]' }
+      : HeardAbout.is(filters.heard)
+        ? { heardAboutJson: { contains: `"${filters.heard}"` } }
+        : {}),
     ...(filters.search
       ? {
           OR: [
@@ -699,6 +712,8 @@ export async function listUsers(
         emailVerified: true,
         phone: true,
         signupSource: true,
+        heardAboutJson: true,
+        heardAboutOther: true,
         lastLoginAt: true,
         createdAt: true,
         _count: { select: { attempts: true, orders: true } },
@@ -719,6 +734,21 @@ export async function listUsers(
   ]);
 
   return { rows, total, page, totalPages: Math.max(1, Math.ceil(total / pageSize)) };
+}
+
+/**
+ * How students say they heard about us, across everyone who was asked.
+ *
+ * Read from every account rather than the current page of the list, so the
+ * counts above the table do not change as an admin pages through it. Small:
+ * one short column per student.
+ */
+export async function getHeardAboutSummary() {
+  const rows = await db.user.findMany({
+    where: { deletedAt: null, role: 'STUDENT', heardAboutJson: { not: null } },
+    select: { heardAboutJson: true, heardAboutOther: true },
+  });
+  return summariseHeardAbout(rows.map((row) => readHeardAbout(row.heardAboutJson, row.heardAboutOther)));
 }
 
 /** Platform-wide analytics for the admin analytics page. */

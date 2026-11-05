@@ -8,7 +8,8 @@ import {
 } from '@/emails/templates';
 import { AppError, errors } from '@/lib/api';
 import { serverEnv } from '@/lib/env';
-import type { UserRole } from '@/lib/enums';
+import type { HeardAbout, UserRole } from '@/lib/enums';
+import { toStored as heardAboutColumns } from '@/lib/heard-about';
 import { AUDIT_ACTIONS, audit } from '@/server/audit';
 import { checkPasswordStrength, hashPassword, verifyPassword } from '@/server/auth/password';
 import { revokeAllSessions } from '@/server/auth/session';
@@ -52,6 +53,10 @@ export interface RegisterParams {
   /** Ten digits, no country code. Required for new accounts. */
   phone: string;
   password: string;
+  /** "How did you hear about us?" — what was ticked; empty when skipped. */
+  heardAbout?: HeardAbout[];
+  /** Their own words, kept only when "Other" is among `heardAbout`. */
+  heardAboutOther?: string;
   context?: RequestContext;
 }
 
@@ -74,6 +79,8 @@ export async function registerUser({
   email,
   phone,
   password,
+  heardAbout = [],
+  heardAboutOther,
   context,
 }: RegisterParams): Promise<RegisterResult> {
   const emailNormal = email.trim().toLowerCase();
@@ -117,6 +124,9 @@ export async function registerUser({
         role: 'STUDENT' satisfies UserRole,
         status: requireVerification ? 'PENDING_VERIFICATION' : 'ACTIVE',
         emailVerified: requireVerification ? null : new Date(),
+        // Always written, even empty: `[]` records that they were asked and
+        // skipped it, which NULL (never asked) does not.
+        ...heardAboutColumns(heardAbout, heardAboutOther),
       },
       select: { id: true, name: true, email: true },
     });

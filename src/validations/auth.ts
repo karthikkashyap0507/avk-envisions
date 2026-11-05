@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { Language } from '@/lib/enums';
+import { HEARD_ABOUT_OTHER_MAX, HeardAbout, Language } from '@/lib/enums';
 // Imported from `lib`, not `server`, so these schemas stay usable in client
 // components — the server-side module pulls in a native Argon2 addon.
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '@/lib/password-policy';
@@ -44,6 +44,23 @@ export const registerSchema = z
     phone: registerPhoneSchema,
     password: passwordSchema,
     confirmPassword: z.string(),
+    /**
+     * "How did you hear about us?" — optional, any number ticked, including
+     * none. Duplicates are dropped rather than refused, and the codes are kept
+     * in the order the form lists them, so two answers that mean the same
+     * thing are stored the same way.
+     */
+    heardAbout: z
+      .array(HeardAbout.schema)
+      .max(10)
+      .default([])
+      .transform((codes) => HeardAbout.values.filter((code) => codes.includes(code))),
+    /** Their own words, for "Other". Ignored unless "Other" is ticked. */
+    heardAboutOther: z
+      .string()
+      .trim()
+      .max(HEARD_ABOUT_OTHER_MAX, `Please keep this under ${HEARD_ABOUT_OTHER_MAX} characters`)
+      .optional(),
     /** Explicit consent, required before an account is created. */
     acceptTerms: z.literal(true, {
       errorMap: () => ({ message: 'Please accept the Terms and Privacy Policy to continue' }),

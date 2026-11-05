@@ -55,6 +55,13 @@ model User {
   /// Guest accounts are created by the free-test lead capture, which collects
   /// a name and phone number instead of a password.
   signupSource  String    @default("REGISTERED")
+  /// "How did you hear about us?" from the registration form: a JSON array of
+  /// `HeardAbout` codes (see `@/lib/enums`). `[]` means they were asked and
+  /// ticked nothing; NULL means they were never asked — accounts made before
+  /// the question existed, and free-test leads, whose form does not ask it.
+  heardAboutJson  String?
+  /// Their own words, kept only when they ticked "Other".
+  heardAboutOther String?
   /// Bumped on password change / "log out everywhere" to invalidate sessions.
   sessionEpoch  Int       @default(0)
 

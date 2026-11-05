@@ -65,6 +65,39 @@ export const LANGUAGE_LABELS: Record<Language, string> = {
   ml: 'മലയാളം',
 };
 
+/**
+ * "How did you hear about us?", asked when a student creates an account.
+ *
+ * Stored as these codes, never as the wording: the labels below can be
+ * reworded — or a Telegram group renamed — without rewriting what earlier
+ * students answered. Any number may be ticked, including none.
+ */
+export const HeardAbout = buildEnum([
+  'TELEGRAM_TARGET_GROUPS',
+  'TELEGRAM_OTHER',
+  'YOUTUBE',
+  'OTHER',
+] as const);
+export type HeardAbout = (typeof HeardAbout.values)[number];
+
+export const HEARD_ABOUT_LABELS: Record<HeardAbout, string> = {
+  TELEGRAM_TARGET_GROUPS: 'Telegram Groups – TARGET PSI & KAS, TARGET PC & PSI, TARGET SDA & FDA',
+  TELEGRAM_OTHER: 'Other Telegram Group',
+  YOUTUBE: 'YouTube',
+  OTHER: 'Other',
+};
+
+/** Short forms for the admin list, where the full group names do not fit. */
+export const HEARD_ABOUT_SHORT_LABELS: Record<HeardAbout, string> = {
+  TELEGRAM_TARGET_GROUPS: 'TARGET Telegram groups',
+  TELEGRAM_OTHER: 'Other Telegram group',
+  YOUTUBE: 'YouTube',
+  OTHER: 'Other',
+};
+
+/** The most a student can write after ticking "Other". */
+export const HEARD_ABOUT_OTHER_MAX = 120;
+
 // ---------------------------------------------------------------------------
 // Exam taxonomy
 // ---------------------------------------------------------------------------

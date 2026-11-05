@@ -17,7 +17,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ApiClientError, api } from '@/lib/api-client';
+import type { HeardAboutAnswer } from '@/lib/heard-about';
 import { formatDate } from '@/lib/utils';
+import { HeardAboutChips } from '@/features/admin/heard-about-chips';
 import type { BoughtCourse } from '@/server/services/purchased-service';
 
 /**
@@ -42,6 +44,8 @@ export interface AdminUserRow {
   attempts: number;
   orders: number;
   courses: BoughtCourse[];
+  /** "How did you hear about us?" from their registration form. */
+  heardAbout: HeardAboutAnswer;
 }
 
 export function UserTable({ rows, currentUserId }: { rows: AdminUserRow[]; currentUserId: string }) {
@@ -111,6 +115,8 @@ export function UserTable({ rows, currentUserId }: { rows: AdminUserRow[]; curre
                 {formatDate(user.createdAt, 'short')}
                 {user.lastLoginAt && ` · last seen ${formatDate(user.lastLoginAt, 'short')}`}
               </p>
+
+              <HeardAboutChips answer={user.heardAbout} className="mt-1.5" />
 
               {(user.courses.length > 0 || user.role === 'STUDENT') && (
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
